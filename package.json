@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": "22.x"
-  },
+  "engines": { "node": "22.x" },
   "scripts": {
-    "build": "node scripts/build.mjs"
+    "dev": "node --env-file-if-exists=.env.local scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/registration.test.js",
+    "check": "node --check api/register.js && node --check public/app.js && npm test"
   }
 }
