@@ -153,24 +153,30 @@ function previewReminderEmail() {
 
 function rsvpReminderMessage_(person) {
   var name = (person.title + ' ' + person.fullName).trim();
+  var maps = 'https://maps.app.goo.gl/oaKL7rKsn9W3KA5U8';
   var subject = 'แจ้งเตือนเข้าร่วมโครงการ วมว. วันที่ 21 พฤศจิกายน 2569';
   var body = 'เรียน ' + name + '\n\n' +
     'ขอแจ้งเตือนการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
     'สังกัด/คณะ: ' + person.affiliation + '\n\n' +
     'วันเสาร์ที่ 21 พฤศจิกายน 2569 เวลา 09.00–16.00 น.\n' +
-    'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
+    'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\n' +
+    'แผนที่: ' + maps + '\n\n' +
     'กำหนดการ\n09.00–12.00 น. จิตวิทยาในการสอน\n13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\n\n' +
     'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\n' +
-    'ขอแสดงความนับถือ\nผู้จัดโครงการ SCiUS NU Training RSVP';
-  var html = '<!doctype html><html lang="th"><body style="margin:0;background:#f7f7f0;font-family:Tahoma,Arial,sans-serif;color:#173b3c;font-size:17px;line-height:1.9">' +
-    '<div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #dfe4da;border-radius:16px;overflow:hidden">' +
-    '<div style="background:#173b3c;color:#fff;padding:28px"><div style="color:#e6b65a;font-size:14px">SCiUS NU TRAINING RSVP</div><h1 style="font-size:26px;margin:10px 0 0">แจ้งเตือนเข้าร่วมโครงการ</h1></div>' +
-    '<div style="padding:28px"><p>เรียน ' + rsvpEscape_(name) + '</p><p>ขอแจ้งเตือนการเข้าร่วม<br><strong>โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</strong></p>' +
-    '<p>สังกัด/คณะ: ' + rsvpEscape_(person.affiliation) + '</p><div style="padding:20px;background:#f4ebd6;border-radius:10px"><strong>วันเสาร์ที่ 21 พฤศจิกายน 2569</strong><br>เวลา 09.00–16.00 น.<br>ณ ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</div>' +
-    '<h2 style="font-size:21px">กำหนดการ</h2><p>09.00–12.00 น. จิตวิทยาในการสอน<br>13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</p>' +
-    '<p>สอบถามข้อมูลเพิ่มเติม<br><a style="color:#173b3c" href="tel:0949426428">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p>ขอแสดงความนับถือ<br>ผู้จัดโครงการ SCiUS NU Training RSVP</p></div></div></body></html>';
+    'ขอแสดงความนับถือ\nธนาภรณ์ รอดฉ่ำ';
+  var html = `<!doctype html><html lang="th"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>แจ้งเตือนเข้าร่วมโครงการ วมว.</title></head>
+<body style="margin:0;padding:0;background:#f5f6f3;color:#253d37;font-family:Tahoma,Arial,sans-serif;font-size:17px;line-height:1.9">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f6f3"><tr><td align="center" style="padding:28px 14px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border:1px solid #e1e5de;border-radius:14px">
+<tr><td style="padding:32px 30px 22px;border-bottom:1px solid #e9ece5"><img src="https://sciusnu-training-rsvp.vercel.app/images/logo-banner-scius.png" width="300" alt="โครงการ วมว. ศูนย์มหาวิทยาลัยนเรศวร" style="display:block;width:300px;max-width:100%;height:auto"><p style="margin:24px 0 5px;font-size:13px;letter-spacing:1.5px;color:#788579">SCiUS NU · TRAINING</p><h1 style="margin:0;font-size:27px;font-weight:600;line-height:1.6">แจ้งเตือนเข้าร่วมโครงการ</h1></td></tr>
+<tr><td style="padding:26px 30px 30px"><p style="margin:0 0 22px">เรียน ${rsvpEscape_(name)}</p><p style="margin:0 0 8px;color:#6c796f;font-size:15px">ขอแจ้งเตือนการเข้าร่วม</p><p style="margin:0 0 22px;font-size:20px;line-height:1.8;font-weight:600">โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</p><p style="margin:0 0 24px;color:#627267;font-size:16px">สังกัด/คณะ: ${rsvpEscape_(person.affiliation)}</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7f8f4;border:1px solid #e5e8df;border-radius:10px"><tr><td style="padding:22px"><p style="margin:0 0 5px;color:#7b867b;font-size:14px">วันและเวลา</p><p style="margin:0 0 18px;font-size:20px;font-weight:600">วันเสาร์ที่ 21 พฤศจิกายน 2569<br><span style="font-size:17px;font-weight:400">09.00–16.00 น.</span></p><p style="margin:0 0 5px;color:#7b867b;font-size:14px">สถานที่</p><p style="margin:0 0 20px">ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</p><a href="${maps}" style="display:inline-block;color:#253d37;background:#fff;border:1px solid #bbc9bb;border-radius:7px;padding:9px 18px;text-decoration:none;font-size:16px">ดูแผนที่สถานที่จัดโครงการ ↗</a></td></tr></table>
+<h2 style="margin:28px 0 12px;font-size:19px;font-weight:600">กำหนดการ</h2><p style="margin:0 0 14px"><span style="color:#748170;font-size:15px">09.00–12.00 น.</span><br>จิตวิทยาในการสอน</p><p style="margin:0 0 26px"><span style="color:#748170;font-size:15px">13.00–16.00 น.</span><br>เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</p>
+<p style="margin:0;padding:22px 0 0;border-top:1px solid #e9ece5;color:#647267;font-size:16px">สอบถามข้อมูลเพิ่มเติม<br><a href="tel:0949426428" style="color:#253d37;text-decoration:none">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p style="margin:26px 0 0;font-size:17px">ขอแสดงความนับถือ<br><strong style="font-weight:600">ธนาภรณ์ รอดฉ่ำ</strong></p></td></tr></table>
+<p style="margin:18px 0 0;font-size:12px;color:#8a9388">โครงการ วมว. ศูนย์มหาวิทยาลัยนเรศวร</p></td></tr></table></body></html>`;
   return { subject: subject, body: body, htmlBody: html, name: 'SCiUS NU Training RSVP' };
 }
+
 function rsvpEscape_(value) { return String(value).replace(/[&<>"']/g, function (char) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]; }); }
 function rsvpDeleteReminderTriggers_() {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
