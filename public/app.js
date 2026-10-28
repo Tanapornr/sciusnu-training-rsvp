@@ -1,4 +1,5 @@
 import { TITLES, AFFILIATIONS, validateRegistration } from './validation.js';
+import { calendarHref } from './calendar.js';
 const form = document.querySelector('#registration-form');
 const fields = document.querySelector('#form-fields');
 const message = document.querySelector('#form-message');
@@ -10,6 +11,9 @@ const success = document.querySelector('#success-panel');
 let submitting = false;
 let requestId;
 let fingerprint;
+for (const link of document.querySelectorAll('[data-calendar-link]')) {
+  link.href = calendarHref(navigator);
+}
 for (const [id, values] of [['title', TITLES], ['affiliation', AFFILIATIONS]]) {
   for (const value of values) document.getElementById(id).add(new Option(value, value));
 }
@@ -59,7 +63,7 @@ form.addEventListener('submit', async event => {
     if (!response.ok || result.ok !== true) {
       if (result.errors) showErrors(result.errors);
       const messages = {
-        DUPLICATE: 'มีชื่อและสังกัดนี้ในระบบแล้ว หากต้องการแก้ไข กรุณาติดต่อผู้จัดโครงการ',
+        DUPLICATE: 'ชื่อของท่านได้ลงทะเบียนแล้ว',
         REQUEST_CONFLICT: 'ข้อมูลที่ส่งซ้ำไม่ตรงกับรายการเดิม กรุณาโหลดหน้าเว็บใหม่แล้วลองอีกครั้ง',
         VALIDATION_ERROR: 'กรุณาตรวจสอบข้อมูลให้ครบถ้วน',
         RATE_LIMITED: 'มีการส่งข้อมูลจำนวนมาก กรุณารอประมาณ 10 นาทีแล้วลองอีกครั้ง',
@@ -74,7 +78,6 @@ form.addEventListener('submit', async event => {
     if (!['CREATED', 'ALREADY_SAVED'].includes(result.code) || !/^NU69-[A-F0-9]{16}$/.test(result.registrationId || '')) throw new Error('Invalid receipt');
     document.querySelector('#receipt-name').textContent = `${checked.data.title} ${checked.data.fullName}`;
     document.querySelector('#receipt-affiliation').textContent = checked.data.affiliation;
-    document.querySelector('#receipt-id').textContent = result.registrationId;
     form.hidden = true;
     document.querySelector('.participation-note').hidden = true;
     success.hidden = false;
@@ -89,17 +92,4 @@ form.addEventListener('submit', async event => {
     spinner.hidden = true;
     arrow.hidden = false;
   }
-});
-document.querySelector('#print-receipt').addEventListener('click', () => window.print());
-document.querySelector('#another-registration').addEventListener('click', () => {
-  form.reset();
-  showErrors();
-  message.hidden = true;
-  requestId = undefined;
-  fingerprint = undefined;
-  for (const id of ['receipt-name', 'receipt-affiliation', 'receipt-id']) document.getElementById(id).textContent = '';
-  success.hidden = true;
-  form.hidden = false;
-  document.querySelector('.participation-note').hidden = false;
-  document.querySelector('#title').focus();
 });
