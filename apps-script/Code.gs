@@ -5,9 +5,13 @@ var RSVP_AFFILIATIONS = [
   'คณะเภสัชศาสตร์', 'คณะโลจิสติกส์และดิจิทัลซัพพลายเชน', 'คณะสหเวชศาสตร์',
   'คณะเกษตรศาสตร์ ทรัพยากรธรรมชาติ และสิ่งแวดล้อม'
 ];
-var RSVP_HEADERS = ['ลงทะเบียนเมื่อ (Asia/Bangkok)', 'รหัสลงทะเบียน', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'สังกัด/คณะ', 'วันที่จัดโครงการ', 'Request ID', 'Participant key', 'Payload hash'];
+var RSVP_BASE_HEADERS = ['ลงทะเบียนเมื่อ (Asia/Bangkok)', 'รหัสลงทะเบียน', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'สังกัด/คณะ', 'วันที่จัดโครงการ', 'Request ID', 'Participant key', 'Payload hash'];
 
-function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.1.0' }); }
+var RSVP_HEADERS = RSVP_BASE_HEADERS.concat(['อีเมล', 'สถานะอีเมลเตือน', 'ส่งอีเมลเตือนเมื่อ', 'พยายามส่งเมื่อ', 'หมายเหตุอีเมลเตือน']);
+var RSVP_REMINDER_AT = '2026-11-20T09:30:00+07:00';
+var RSVP_REMINDER_END = '2026-11-21T00:00:00+07:00';
+
+function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.2.0' }); }
 function doPost(e) {
   try {
     var props = PropertiesService.getScriptProperties();
@@ -25,6 +29,8 @@ function doPost(e) {
     var data = JSON.parse(envelope.payload);
     if (!data || typeof data !== 'object') return rsvpJson_({ ok: false, code: 'VALIDATION_ERROR' });
     var name = rsvpNormalize_(data.fullName);
+    var email = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
+    if (data.schemaVersion !== 2 || !rsvpValidEmail_(email)) return rsvpJson_({ ok: false, code: 'VALIDATION_ERROR' });
     if (RSVP_TITLES.indexOf(data.title) === -1 || RSVP_AFFILIATIONS.indexOf(data.affiliation) === -1 || name.length < 4 || name.length > 120 ||
         !/^[\p{L}\p{M}][\p{L}\p{M} .’'()\-]*$/u.test(name) || name.split(' ').length < 2 || data.eventDate !== '2026-11-21' ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(data.requestId || '') ||
@@ -32,16 +38,16 @@ function doPost(e) {
     // One registration per name for this event, regardless of title or affiliation.
     var nameKey = rsvpNameKey_(name);
     var participantKey = rsvpHash_(nameKey + '|2026-11-21');
-    var payloadHash = rsvpHash_(data.title + '|' + name + '|' + data.affiliation + '|2026-11-21');
+    var payloadHash = rsvpHash_(JSON.stringify([data.title, name, email, data.affiliation, '2026-11-21']));
     var lock = LockService.getScriptLock();
     if (!lock.tryLock(7000)) return rsvpJson_({ ok: false, code: 'BUSY' });
     try {
       var sheet = rsvpSheet_(sheetId, props.getProperty('SHEET_NAME') || 'Registrations');
-      var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, 9).getValues() : [];
+      var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, RSVP_HEADERS.length).getValues() : [];
       // A retry after a network timeout returns the saved receipt without adding a row.
       for (var i = 0; i < rows.length; i++) {
         if (rows[i][6] === data.requestId) return rsvpJson_(rows[i][8] === payloadHash ?
-          { ok: true, code: 'ALREADY_SAVED', registrationId: rows[i][1] } : { ok: false, code: 'REQUEST_CONFLICT' });
+          { ok: true, code: 'ALREADY_SAVED', registrationId: rows[i][1], schemaVersion: 2 } : { ok: false, code: 'REQUEST_CONFLICT' });
       }
       for (var j = 0; j < rows.length; j++) {
         // Read the name so rows saved with the previous key format still match.
@@ -59,11 +65,12 @@ function doPost(e) {
       cache.put(bucket, String(count + 1), 600);
       var registrationId = 'NU69-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16).toUpperCase();
       var row = [Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), registrationId,
-        data.title, name, data.affiliation, '2026-11-21', data.requestId, participantKey, payloadHash];
+        data.title, name, data.affiliation, '2026-11-21', data.requestId, participantKey, payloadHash, email,
+        Date.now() < new Date(RSVP_REMINDER_AT).getTime() ? 'PENDING' : 'LATE', '', '', ''];
       // Text formatting and escaping defend against spreadsheet formula injection.
-      sheet.getRange(sheet.getLastRow() + 1, 1, 1, 9).setNumberFormat('@').setValues([row.map(rsvpCell_)]);
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, RSVP_HEADERS.length).setNumberFormat('@').setValues([row.map(rsvpCell_)]);
       SpreadsheetApp.flush();
-      return rsvpJson_({ ok: true, code: 'CREATED', registrationId: registrationId });
+      return rsvpJson_({ ok: true, code: 'CREATED', registrationId: registrationId, schemaVersion: 2 });
     } finally { lock.releaseLock(); }
   } catch (error) {
     console.error('RSVP processing failed');
@@ -87,12 +94,22 @@ function rsvpSheet_(id, name) {
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, RSVP_HEADERS.length).setValues([RSVP_HEADERS]);
     sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, 9).setBackground('#102d36').setFontColor('#ffffff').setFontWeight('bold');
+    sheet.getRange(1, 1, 1, RSVP_HEADERS.length).setBackground('#102d36').setFontColor('#ffffff').setFontWeight('bold');
     sheet.setColumnWidth(4, 240);
     sheet.setColumnWidth(5, 420);
   } else {
     var headers = sheet.getRange(1, 1, 1, 9).getValues()[0];
-    if (headers.join('|') !== RSVP_HEADERS.join('|')) throw new Error('Unexpected sheet headers. Use a new empty sheet name.');
+    if (headers.join('|') !== RSVP_BASE_HEADERS.join('|')) throw new Error('Unexpected sheet headers. Use a new empty sheet name.');
+    // Append columns J–N; never shift or overwrite the original registration columns.
+    var tail = sheet.getRange(1, 10, 1, 5).getValues()[0];
+    for (var col = 0; col < 5; col++) {
+      if (tail[col] && tail[col] !== RSVP_HEADERS[col + 9]) throw new Error('Unexpected email columns');
+      if (!tail[col] && sheet.getLastRow() > 1) {
+        var occupied = sheet.getRange(2, col + 10, sheet.getLastRow() - 1, 1).getValues().some(function (row) { return row[0] !== ''; });
+        if (occupied) throw new Error('Email migration would overwrite an unnamed column');
+      }
+    }
+    sheet.getRange(1, 10, 1, 5).setValues([RSVP_HEADERS.slice(9)]);
   }
   return sheet;
 }
@@ -103,3 +120,163 @@ function rsvpHash_(value) { return rsvpHex_(Utilities.computeDigest(Utilities.Di
 function rsvpHex_(bytes) { return bytes.map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join(''); }
 function rsvpEqual_(a, b) { var mismatch = a.length ^ b.length; for (var i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i); return mismatch === 0; }
 function rsvpJson_(value) { return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON); }
+
+function rsvpValidEmail_(value) {
+  if (typeof value !== 'string' || value.length > 254 || /[\s,;<>\r\n]/.test(value)) return false;
+  const parts = value.split('@');
+  if (parts.length !== 2 || !parts[0] || parts[0].length > 64 || parts[0].startsWith('.') || parts[0].endsWith('.') || parts[0].includes('..')) return false;
+  return /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i.test(parts[0]) && parts[1].includes('.') && parts[1].split('.').every(label => label.length > 0 && label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label));
+}
+
+/** Run from the editor after reviewing the email preview. Sends no email now. */
+function setupEmailReminder() {
+  if (Date.now() >= new Date(RSVP_REMINDER_AT).getTime()) throw new Error('The reminder date has passed. Do not schedule a past reminder.');
+  var quota = MailApp.getRemainingDailyQuota(); // Requests send-mail authorization without sending.
+  setupSheet();
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('REMINDER_ENABLED', 'false');
+  rsvpDeleteReminderTriggers_();
+  try {
+    ScriptApp.newTrigger('sendScheduledReminders').timeBased().at(new Date(RSVP_REMINDER_AT)).create();
+    ScriptApp.newTrigger('sendScheduledReminders').timeBased().at(new Date('2026-11-20T09:40:00+07:00')).create();
+    props.setProperties({ REMINDER_ENABLED: 'true', REMINDER_SCHEDULE: RSVP_REMINDER_AT, REMINDER_LAST_STATUS: 'SCHEDULED', REMINDER_QUOTA_AT_SETUP: String(quota) });
+  } catch (error) { rsvpDeleteReminderTriggers_(); throw new Error('Reminder setup did not complete'); }
+  console.log('Reminder scheduled for 20 November 2026, 09:30 Asia/Bangkok. No email sent during setup.');
+}
+
+/** A read-only preview returned to the editor; never sends a message. */
+function previewReminderEmail() {
+  var message = rsvpReminderMessage_({ title: 'นางสาว', fullName: 'ตัวอย่าง ผู้เข้าร่วม', affiliation: 'คณะวิทยาศาสตร์' });
+  console.log(message.body);
+  return message;
+}
+
+function rsvpReminderMessage_(person) {
+  var name = (person.title + ' ' + person.fullName).trim();
+  var subject = 'แจ้งเตือนเข้าร่วมโครงการ วมว. วันที่ 21 พฤศจิกายน 2569';
+  var body = 'เรียน ' + name + '\n\n' +
+    'ขอแจ้งเตือนการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
+    'สังกัด/คณะ: ' + person.affiliation + '\n\n' +
+    'วันเสาร์ที่ 21 พฤศจิกายน 2569 เวลา 09.00–16.00 น.\n' +
+    'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
+    'กำหนดการ\n09.00–12.00 น. จิตวิทยาในการสอน\n13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\n\n' +
+    'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\n' +
+    'ขอแสดงความนับถือ\nผู้จัดโครงการ SCiUS NU Training RSVP';
+  var html = '<!doctype html><html lang="th"><body style="margin:0;background:#f7f7f0;font-family:Tahoma,Arial,sans-serif;color:#173b3c;font-size:17px;line-height:1.9">' +
+    '<div style="max-width:640px;margin:24px auto;background:#fff;border:1px solid #dfe4da;border-radius:16px;overflow:hidden">' +
+    '<div style="background:#173b3c;color:#fff;padding:28px"><div style="color:#e6b65a;font-size:14px">SCiUS NU TRAINING RSVP</div><h1 style="font-size:26px;margin:10px 0 0">แจ้งเตือนเข้าร่วมโครงการ</h1></div>' +
+    '<div style="padding:28px"><p>เรียน ' + rsvpEscape_(name) + '</p><p>ขอแจ้งเตือนการเข้าร่วม<br><strong>โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</strong></p>' +
+    '<p>สังกัด/คณะ: ' + rsvpEscape_(person.affiliation) + '</p><div style="padding:20px;background:#f4ebd6;border-radius:10px"><strong>วันเสาร์ที่ 21 พฤศจิกายน 2569</strong><br>เวลา 09.00–16.00 น.<br>ณ ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</div>' +
+    '<h2 style="font-size:21px">กำหนดการ</h2><p>09.00–12.00 น. จิตวิทยาในการสอน<br>13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</p>' +
+    '<p>สอบถามข้อมูลเพิ่มเติม<br><a style="color:#173b3c" href="tel:0949426428">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p>ขอแสดงความนับถือ<br>ผู้จัดโครงการ SCiUS NU Training RSVP</p></div></div></body></html>';
+  return { subject: subject, body: body, htmlBody: html, name: 'SCiUS NU Training RSVP' };
+}
+function rsvpEscape_(value) { return String(value).replace(/[&<>"']/g, function (char) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]; }); }
+function rsvpDeleteReminderTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) {
+    if (['sendScheduledReminders', 'rsvpReminderRetry'].indexOf(trigger.getHandlerFunction()) !== -1) ScriptApp.deleteTrigger(trigger);
+  });
+}
+function rsvpReminderRetry() {
+  ScriptApp.getProjectTriggers().forEach(function (trigger) { if (trigger.getHandlerFunction() === 'rsvpReminderRetry') ScriptApp.deleteTrigger(trigger); });
+  return sendScheduledReminders();
+}
+function rsvpReminderRow_(sheet, id) {
+  var count = sheet.getLastRow() - 1;
+  if (count < 1) return 0;
+  var ids = sheet.getRange(2, 2, count, 1).getValues();
+  for (var i = 0; i < ids.length; i++) if (ids[i][0] === id) return i + 2;
+  return 0;
+}
+function rsvpReminderCandidate_(row) {
+  return String(row[5]) === '2026-11-21' && String(row[0]) <= '2026-11-20 09:30:00' &&
+    ['', 'PENDING'].indexOf(String(row[10] || '')) !== -1;
+}
+
+/** Read-only owner check; contains counts only, never participant names or addresses. */
+function reminderSetupStatus() {
+  var props = PropertiesService.getScriptProperties();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  var rows;
+  try {
+    var sheet = rsvpSheet_(props.getProperty('SPREADSHEET_ID'), props.getProperty('SHEET_NAME') || 'Registrations');
+    rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, RSVP_HEADERS.length).getValues() : [];
+  } finally { lock.releaseLock(); }
+  var report = {
+    enabled: props.getProperty('REMINDER_ENABLED') === 'true',
+    scheduledAt: props.getProperty('REMINDER_SCHEDULE'),
+    scheduledTriggers: ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === 'sendScheduledReminders'; }).length,
+    remainingDailyQuota: MailApp.getRemainingDailyQuota(),
+    registrations: rows.length,
+    validEmailCount: rows.filter(function (r) { return rsvpValidEmail_(typeof r[9] === 'string' ? r[9].trim().toLowerCase() : ''); }).length
+  };
+  console.log(JSON.stringify(report));
+  return report;
+}
+
+/** Owner-triggered only. Not exposed by doGet or doPost. Never sends before the due date. */
+function sendScheduledReminders() {
+  var props = PropertiesService.getScriptProperties();
+  var now = Date.now();
+  if (props.getProperty('REMINDER_ENABLED') !== 'true') return { status: 'DISABLED', sent: 0 };
+  if (now < new Date(RSVP_REMINDER_AT).getTime()) return { status: 'NOT_DUE', sent: 0 };
+  if (now >= new Date(RSVP_REMINDER_END).getTime()) return { status: 'EXPIRED', sent: 0 };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  var sheet;
+  var rows;
+  try {
+    sheet = rsvpSheet_(props.getProperty('SPREADSHEET_ID'), props.getProperty('SHEET_NAME') || 'Registrations');
+    rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, RSVP_HEADERS.length).getValues() : [];
+  } finally { lock.releaseLock(); }
+  var quota = MailApp.getRemainingDailyQuota();
+  var sent = 0;
+  var failed = 0;
+  var pending = false;
+  var budget = Math.min(50, Math.max(0, quota));
+  for (var i = 0; i < rows.length; i++) {
+    if (!rsvpReminderCandidate_(rows[i])) continue;
+    if (sent + failed >= budget || Date.now() - now > 210000) { pending = true; continue; }
+    var claimed;
+    var registrationId = rows[i][1];
+    lock.waitLock(10000);
+    try {
+      var rowNumber = rsvpReminderRow_(sheet, registrationId);
+      if (!rowNumber) continue;
+      var fresh = sheet.getRange(rowNumber, 1, 1, RSVP_HEADERS.length).getValues()[0];
+      if (!rsvpReminderCandidate_(fresh)) continue;
+      var email = typeof fresh[9] === 'string' ? fresh[9].trim().toLowerCase() : '';
+      if (!rsvpValidEmail_(email)) {
+        sheet.getRange(rowNumber, 11, 1, 4).setValues([[email ? 'INVALID_EMAIL' : 'MISSING_EMAIL', '', '', 'ผู้จัดต้องตรวจสอบอีเมล']]);
+        SpreadsheetApp.flush(); continue;
+      }
+      // Claim durably before sending. SENDING and ERROR are never auto-retried.
+      // This avoids duplicate reminders if execution stops after the email is accepted.
+      sheet.getRange(rowNumber, 11, 1, 4).setValues([['SENDING', '', Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), '']]);
+      SpreadsheetApp.flush();
+      claimed = { email: email, title: fresh[2], fullName: fresh[3], affiliation: fresh[4] };
+    } finally { lock.releaseLock(); }
+    if (!claimed) continue;
+    var delivered = false;
+    try { var mail = rsvpReminderMessage_(claimed); mail.to = claimed.email; MailApp.sendEmail(mail); delivered = true; sent++; }
+    catch (error) { failed++; }
+    lock.waitLock(10000);
+    try {
+      var target = rsvpReminderRow_(sheet, registrationId);
+      if (target) {
+        var current = sheet.getRange(target, 11, 1, 4).getValues()[0];
+        if (current[0] === 'SENDING') {
+          sheet.getRange(target, 11, 1, 4).setValues([[delivered ? 'SENT' : 'ERROR', delivered ? Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss') : '', current[2], delivered ? '' : 'SEND_FAILED_REVIEW: ตรวจสอบก่อนส่งใหม่']]);
+          SpreadsheetApp.flush();
+        }
+      }
+    } finally { lock.releaseLock(); }
+  }
+  var status = pending && quota === 0 ? 'QUOTA_EXHAUSTED' : pending ? 'PENDING' : failed ? 'NEEDS_REVIEW' : 'COMPLETE';
+  props.setProperties({ REMINDER_LAST_STATUS: status, REMINDER_LAST_RUN: new Date().toISOString(), REMINDER_LAST_SENT_COUNT: String(sent) });
+  if (pending && ScriptApp.getProjectTriggers().every(function (trigger) { return trigger.getHandlerFunction() !== 'rsvpReminderRetry'; })) {
+    ScriptApp.newTrigger('rsvpReminderRetry').timeBased().after(quota === 0 ? 15 * 60000 : 60000).create();
+  }
+  return { status: status, sent: sent, failed: failed };
+}
