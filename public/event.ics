@@ -1,0 +1,21 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//SCiUS NU//Training RSVP//TH
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:sciusnu-training-20261121@sciusnu-training-rsvp
+DTSTAMP:20261028T000000Z
+DTSTART:20261121T020000Z
+DTEND:20261121T090000Z
+SUMMARY:SCiUS NU Training — โครงการพัฒนาศัก
+ ยภาพบุคลากร
+DESCRIPTION:โครงการพัฒนาศักยภาพบุ
+ คลากร ครูและอาจารย์ โครงกา
+ ร วมว.\n09.00–12.00 น. จิตวิทยาในการ
+ สอน\n13.00–16.00 น. เทคนิคการรับมื
+ อและปฐมพยาบาลทางใจในสถาน
+ ศึกษา
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR
