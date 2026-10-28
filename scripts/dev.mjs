@@ -9,6 +9,7 @@ const files = new Map([
   ['/validation.js', ['validation.js', 'text/javascript; charset=utf-8']],
   ['/calendar.js', ['calendar.js', 'text/javascript; charset=utf-8']],
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
+  ['/images/speaker-chanadda.png', ['images/speaker-chanadda.png', 'image/png']],
   ['/event.ics', ['event.ics', 'text/calendar; charset=utf-8']],
 ]);
 const headers = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8')).headers[0].headers;
