@@ -214,3 +214,108 @@ fieldset:disabled { opacity: .7; }
   .page-shell, .hero { display: block; width: 100%; padding: 0; }
   .form-card { border: 0; box-shadow: none; }
 }
+
+/* Program-first layout for template 2. */
+.hero.hero-v2 { display: block; padding-top: 48px; padding-bottom: 0; }
+.hero-heading { display: grid; grid-template-columns: 1.05fr 1fr; align-items: end; gap: 70px; }
+.hero-v2 h1 { font-size: clamp(40px, 4.2vw, 55px); line-height: 1.5; letter-spacing: -1.4px; margin-top: 17px; margin-bottom: 0; }
+.hero-description { padding-bottom: 7px; }
+.hero-description .project-name { font-size: 19px; line-height: 1.9; }
+.hero-description .intro { font-size: 17px; margin-top: 12px; }
+.hero-register { display: inline-flex; align-items: center; gap: 28px; margin-top: 18px; font-size: 17px; font-weight: 600; text-decoration: underline; text-underline-offset: 6px; }
+.event-details.event-ribbon { grid-template-columns: 1fr .65fr 1.65fr; gap: 28px; margin-top: 35px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.event-ribbon .venue-detail { grid-column: auto; }
+.event-ribbon dt { font-size: 13px; margin-bottom: 5px; }
+.event-ribbon dd { font-size: 17px; line-height: 1.9; }
+.event-ribbon .map-link { font-size: 15px; margin-top: 5px; }
+.program-section { background: #fff; border: 0; padding-top: 31px; padding-bottom: 42px; }
+.program-heading { align-items: center; margin-bottom: 22px; }
+.program-heading h2 { font-size: 23px; margin-top: 7px; }
+.program-heading > p { max-width: 370px; text-align: right; font-size: 16px; }
+.sessions { gap: 24px; }
+.session { min-height: 348px; display: flex; flex-direction: column; padding: 26px 28px 28px; background: #f2f6f9; border: 1px solid #e1e8ec; border-radius: 16px; }
+.session:nth-child(2) { background: #f8f6f1; border-color: #e9e5dc; }
+.session-meta { gap: 10px; font-size: 15px; }
+.session-number { display: inline-flex; justify-content: center; align-items: center; width: 27px; height: 27px; border: 1px solid #c6d3dd; border-radius: 50%; font-size: 11px; }
+.session-meta time { font-size: 15px; padding: 4px 9px; background: #ffffffa8; border-radius: 5px; }
+.session h3 { min-height: 94px; margin-top: 21px; font-size: 28px; line-height: 1.65; font-weight: 600; }
+.speaker { margin-top: 23px; gap: 17px; }
+.speaker-photo { width: 96px; border-radius: 8px; }
+.speaker-symbol { width: 46px; height: 46px; background: #ece8df; color: #8b7e65; }
+.speaker-name { font-size: 16px; }
+.speaker-role { font-size: 15px; line-height: 1.9; }
+.break-note { border: 0; padding-top: 0; margin-top: 20px; text-align: center; font-size: 14px; }
+.registration-stage { padding: 53px 0 44px; background: #f7f9fb; border-top: 1px solid var(--line); }
+.registration-shell { max-width: 760px; }
+.registration-copy { text-align: center; margin-bottom: 28px; }
+.registration-copy h2 { font-size: 33px; line-height: 1.6; font-weight: 600; margin-top: 11px; }
+.registration-copy > p:last-child { margin-top: 10px; color: var(--muted); font-size: 17px; line-height: 1.8; }
+.registration-stage .form-card { border-radius: 13px; box-shadow: 0 14px 52px #17304705; }
+.registration-stage .form-top { padding: 24px 32px 22px; background: #fff; }
+.registration-stage .form-top .eyebrow { display: none; }
+.registration-stage .form-top h2 { margin-top: 0; font-size: 27px; }
+.registration-stage .form-body { padding: 24px 32px 28px; }
+.registration-stage #form-fields { display: grid; grid-template-columns: 174px minmax(0,1fr); column-gap: 20px; }
+.registration-stage .field:nth-of-type(3), .registration-stage .field:nth-of-type(4), .registration-stage .privacy-note, .registration-stage .submit-button { grid-column: 1 / -1; }
+.registration-stage .field label { font-size: 18px; }
+.stage-contact { margin-top: 25px; text-align: center; font-size: 16px; color: #5e7486; }
+.stage-contact p:first-child { font-size: 13px; margin-bottom: 4px; }
+.stage-contact strong { font-weight: 500; }
+.stage-contact span { margin: 0 8px; color: #a7b8c5; }
+.stage-contact a { text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 1080px) {
+  .hero-heading { gap: 42px; }
+  .hero-v2 h1 { font-size: 43px; }
+  .hero-description .project-name { font-size: 18px; }
+  .event-details.event-ribbon { grid-template-columns: 1fr .65fr 1.5fr; gap: 22px; }
+  .session { padding: 23px; }
+  .session h3 { font-size: 25px; }
+  .speaker-photo { width: 85px; }
+}
+@media (max-width: 760px) {
+  .hero.hero-v2 { padding-top: 31px; }
+  .hero-heading { display: block; }
+  .hero-v2 h1 { font-size: clamp(34px, 8vw, 43px); line-height: 1.5; margin-top: 14px; letter-spacing: -.8px; }
+  .hero-description { padding: 0; margin-top: 20px; }
+  .hero-description .project-name { font-size: 18px; }
+  .hero-description .intro { font-size: 16px; margin-top: 12px; }
+  .hero-register { margin-top: 16px; font-size: 16px; }
+  .event-details.event-ribbon { grid-template-columns: 1fr; gap: 16px; padding: 23px 0; margin-top: 25px; }
+  .event-ribbon dd { font-size: 17px; }
+  .program-section { padding-top: 24px; padding-bottom: 30px; }
+  .program-heading { margin-bottom: 18px; }
+  .program-heading h2 { font-size: 23px; }
+  .program-heading > p { margin-top: 9px; text-align: left; font-size: 15px; }
+  .sessions { gap: 18px; }
+  .session { min-height: 0; padding: 22px; border-radius: 13px; }
+  .session h3 { min-height: 0; font-size: 25px; margin-top: 19px; }
+  .speaker { margin-top: 22px; gap: 14px; }
+  .speaker-photo { width: 83px; }
+  .session-meta, .session-meta time { font-size: 14px; }
+  .session-meta time { padding: 3px 7px; }
+  .break-note { margin-top: 18px; font-size: 13px; }
+  .break-note span { display: inline; margin-right: 8px; }
+  .registration-stage { padding-top: 35px; padding-bottom: 31px; }
+  .registration-copy { margin-bottom: 23px; }
+  .registration-copy h2 { font-size: 28px; }
+  .registration-copy > p:last-child { font-size: 16px; }
+  .registration-stage .form-top { padding: 23px 22px 20px; }
+  .registration-stage .form-top h2 { font-size: 25px; }
+  .registration-stage .form-body { padding: 22px; }
+  .registration-stage #form-fields { display: block; }
+  .stage-contact { font-size: 15px; }
+  .stage-contact span { margin: 0 4px; }
+}
+@media (max-width: 360px) {
+  .hero-v2 h1 { font-size: 32px; }
+  .session { padding: 18px; }
+  .session h3 { font-size: 23px; }
+  .registration-stage .form-top, .registration-stage .form-body { padding-left: 18px; padding-right: 18px; }
+  .stage-contact span { display: none; }
+  .stage-contact a { display: block; margin-top: 2px; }
+}
+@media print {
+  .hero-v2, .registration-copy, .stage-contact { display: none !important; }
+  .registration-stage { padding: 0; background: #fff; border: 0; }
+  .registration-stage .page-shell { width: 100%; }
+}
