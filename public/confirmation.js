@@ -5,6 +5,7 @@ export const EVENT = Object.freeze({
   time: '09.00–16.00 น.',
   venue: 'ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร',
   contact: '094-9426428 ธนาภรณ์ รอดฉ่ำ',
+  mapUrl: 'https://maps.app.goo.gl/oaKL7rKsn9W3KA5U8',
 });
 
 export async function createConfirmationPng(person) {
@@ -55,7 +56,8 @@ export async function createConfirmationPng(person) {
   line('เข้าร่วมโครงการ', 30, muted);
   line(EVENT.project, 39, ink, true); line(EVENT.program, 39, ink, true); y += 24;
   line(EVENT.date, 37); line(`เวลา ${EVENT.time}`, 37); y += 22;
-  line(`ณ ${EVENT.venue}`, 37); y += 34;
+  line(`ณ ${EVENT.venue}`, 37); y += 20;
+  line('แผนที่สถานที่จัดโครงการ', 29, muted); line(EVENT.mapUrl, 28); y += 30;
   line('สอบถามข้อมูลเพิ่มเติม', 29, muted); line(EVENT.contact, 35);
   // Keep all text even for long names, addresses, and affiliations.
   const output = document.createElement('canvas');
