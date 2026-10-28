@@ -5,11 +5,12 @@ import { readFileSync } from 'node:fs';
 import { handleRegistration } from '../api/register.js';
 import { AFFILIATIONS, TITLES, normalizeName, validateRegistration } from '../public/validation.js';
 import { createAppsScriptHarness, sign } from './helpers/apps-script.mjs';
-import { calendarHref, OUTLOOK_CALENDAR } from '../public/calendar.js';
+import { validEmail } from '../public/validation.js';
+import { EVENT } from '../public/confirmation.js';
 
 const origin = 'http://localhost:3000';
-const valid = () => ({ title: 'ดร.', fullName: 'สมชาย ใจดี', affiliation: AFFILIATIONS[1], requestId: randomUUID(), website: '' });
-const gasData = () => ({ ...valid(), eventDate: '2026-11-21', clientKey: 'a'.repeat(64) });
+const valid = () => ({ title: 'ดร.', fullName: 'สมชาย ใจดี', email: 'somchai@example.com', affiliation: AFFILIATIONS[1], requestId: randomUUID(), website: '' });
+const gasData = () => ({ ...valid(), eventDate: '2026-11-21', schemaVersion: 2, clientKey: 'a'.repeat(64) });
 const request = (body, headers = {}) => new Request(`${origin}/api/register`, { method: 'POST', headers: { origin, 'content-type': 'application/json', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) });
 const environment = { APPS_SCRIPT_URL: 'https://script.google.com/macros/s/test-deployment/exec', APPS_SCRIPT_SECRET: 'test-only-shared-secret-0123456789abcdef', ALLOWED_ORIGINS: origin };
 function integration() { const harness = createAppsScriptHarness(); return { harness, call: data => handleRegistration(request(data), { env: environment, fetchImpl: harness.fetch }) }; }
@@ -164,27 +165,130 @@ test('formula escaping and public health endpoint do not expose participant data
   assert.equal(h.context.rsvpCell_('ชื่อ นามสกุล'), 'ชื่อ นามสกุล');
   assert.deepEqual(Object.keys(h.context.doGet()).sort(), ['ok', 'service', 'version']);
 });
-test('calendar uses Thai event time, CRLF and safe 75-byte folding', () => {
-  const calendar = readFileSync(new URL('../public/event.ics', import.meta.url), 'utf8');
-  assert.ok(calendar.includes('DTSTART:20261121T020000Z\r\n'));
-  assert.ok(calendar.includes('DTEND:20261121T090000Z\r\n'));
-  assert.equal(calendar.replace(/\r\n/g, '').includes('\n'), false);
-  for (const line of calendar.split('\r\n')) assert.ok(Buffer.byteLength(line, 'utf8') <= 75);
-  assert.ok(calendar.replace(/\r\n /g, '').includes('เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา'));
+
+test('email is required and validated consistently in browser, API and Apps Script', async () => {
+  for (const email of ['', 'a@', 'a@example', 'x@example.com,other@example.com', 'x@example.com\r\nBcc:test@example.com', 'a..b@example.com', '.name@example.com', 'x@-example.com', 'a'.repeat(65) + '@example.com']) {
+    assert.equal(validEmail(email), false, email);
+    assert.equal(validateRegistration({ ...valid(), email }).valid, false);
+    const h = createAppsScriptHarness();
+    assert.equal(h.post(sign({ ...gasData(), email })).code, 'VALIDATION_ERROR');
+    assert.equal(h.rows.length, 0);
+  }
+  assert.equal(validateRegistration({ ...valid(), email: ' Name+tag@Example.COM ' }).data.email, 'name+tag@example.com');
+  const { harness, call } = integration();
+  const response = await call({ ...valid(), email: ' Name+tag@Example.COM ' });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).schemaVersion, 2);
+  assert.equal(harness.rows[1][9], 'name+tag@example.com');
+  assert.equal(harness.outbox.length, 0, 'Registration does not send reminders immediately');
 });
 
-test('desktop calendars open the requested Outlook URL; mobile links preserve the event', () => {
-  assert.equal(calendarHref({ userAgent: 'Mozilla Windows NT 10.0', platform: 'Win32' }), OUTLOOK_CALENDAR);
-  assert.equal(calendarHref({ userAgent: 'Macintosh', platform: 'MacIntel' }), OUTLOOK_CALENDAR);
-  assert.equal(calendarHref({ userAgent: 'iPhone' }), '/event.ics');
-  assert.equal(calendarHref({ userAgent: 'Macintosh', platform: 'MacIntel', maxTouchPoints: 5 }), '/event.ics');
-  const android = calendarHref({ userAgent: 'Mozilla Android 15' });
-  assert.ok(android.startsWith('intent://calendar.google.com/calendar/render?'));
-  assert.ok(android.includes('package=com.google.android.calendar;'));
-  const encoded = android.split('S.browser_fallback_url=')[1].split(';end')[0];
-  const fallback = new URL(decodeURIComponent(encoded));
-  assert.equal(fallback.origin, 'https://calendar.google.com');
-  assert.equal(fallback.searchParams.get('dates'), '20261121T020000Z/20261121T090000Z');
-  assert.equal(fallback.searchParams.get('ctz'), 'Asia/Bangkok');
-  assert.ok(fallback.searchParams.get('details').includes('ปฐมพยาบาลทางใจ'));
+test('legacy nine-column rows survive additive email migration unchanged', () => {
+  const h = createAppsScriptHarness();
+  h.setup();
+  h.rows[0].length = 9;
+  const legacy = ['2026-10-28 12:00:00','NU69-1234567890ABCDEF','ดร.','ผู้เข้าร่วม เดิม','คณะวิทยาศาสตร์','2026-11-21','legacy-request','old-key','old-hash'];
+  h.rows.push([...legacy]);
+  h.setup();
+  assert.equal(h.rows[0].length, 14);
+  assert.deepEqual(h.rows[1], legacy);
+  h.setup();
+  assert.deepEqual(h.rows[1], legacy);
+  const changed = structuredClone(h.rows);
+  h.rows[0][9] = 'Unrelated data';
+  assert.throws(() => h.setup());
+  assert.deepEqual(h.rows[1], changed[1]);
+});
+
+test('setting up reminders creates exactly two dated triggers and sends no mail', () => {
+  const h = createAppsScriptHarness();
+  h.context.setupEmailReminder();
+  assert.equal(h.outbox.length, 0);
+  assert.equal(h.properties.REMINDER_ENABLED, 'true');
+  assert.equal(h.triggers.length, 2);
+  assert.equal(h.triggers[0].time, Date.parse('2026-11-20T02:30:00Z'));
+  assert.equal(h.triggers[1].time, Date.parse('2026-11-20T02:40:00Z'));
+  h.context.setupEmailReminder();
+  assert.equal(h.triggers.length, 2);
+  h.setNow('2026-11-20T10:00:00+07:00');
+  assert.throws(() => h.context.setupEmailReminder());
+});
+
+test('reminders never send early, use separate recipients, and do not resend completed rows', () => {
+  const h = createAppsScriptHarness();
+  h.post(sign(gasData()));
+  h.post(sign({ ...gasData(), fullName: 'สมหญิง รักเรียน', email: 'second@example.com' }));
+  h.context.setupEmailReminder();
+  assert.equal(h.context.sendScheduledReminders().status, 'NOT_DUE');
+  assert.equal(h.outbox.length, 0);
+  h.setNow('2026-11-20T09:30:00+07:00');
+  const result = h.context.sendScheduledReminders();
+  assert.equal(result.sent, 2);
+  assert.equal(h.outbox.length, 2);
+  assert.equal(h.outbox[0].to, 'somchai@example.com');
+  assert.equal(h.outbox[1].to, 'second@example.com');
+  for (const mail of h.outbox) {
+    assert.equal(mail.cc, undefined); assert.equal(mail.bcc, undefined);
+    assert.ok(mail.body.includes('SC1-411'));
+    assert.ok(mail.body.includes('094-9426428'));
+    assert.ok(mail.body.includes('21 พฤศจิกายน 2569'));
+  }
+  assert.equal(h.rows[1][10], 'SENT');
+  assert.equal(h.rows[1][11], '2026-11-20 09:30:00');
+  h.context.sendScheduledReminders();
+  assert.equal(h.outbox.length, 2);
+});
+
+test('missing emails, late registrations, exhausted quota and ambiguous send failures are safe', () => {
+  const h = createAppsScriptHarness();
+  h.post(sign(gasData()));
+  h.context.setupEmailReminder();
+  h.setNow('2026-11-20T09:30:00+07:00');
+  h.setQuota(0);
+  assert.equal(h.context.sendScheduledReminders().status, 'QUOTA_EXHAUSTED');
+  assert.equal(h.rows[1][10], 'PENDING');
+  assert.equal(h.outbox.length, 0);
+  h.setQuota(1500);
+  h.setMailFailure(true);
+  h.context.sendScheduledReminders();
+  assert.equal(h.rows[1][10], 'ERROR');
+  assert.equal(h.outbox.length, 1);
+  h.context.sendScheduledReminders();
+  assert.equal(h.outbox.length, 1, 'Ambiguous delivery is never retried automatically');
+  h.post(sign({ ...gasData(), fullName: 'ลงทะเบียน ภายหลัง', email: 'late@example.com' }, undefined, String(h.context.Date.now())));
+  assert.equal(h.rows[2][10], 'LATE');
+  h.rows[1][9] = ''; h.rows[1][10] = '';
+  h.context.sendScheduledReminders();
+  assert.equal(h.rows[1][10], 'MISSING_EMAIL');
+  h.setNow('2026-11-21T00:01:00+07:00');
+  assert.equal(h.context.sendScheduledReminders().status, 'EXPIRED');
+});
+
+test('a partially sent batch is resumed without duplicate delivery', () => {
+  const h = createAppsScriptHarness();
+  for (let i = 0; i < 55; i++) h.post(sign({ ...gasData(), fullName: 'Person ' + String.fromCharCode(65 + Math.floor(i / 26)) + String.fromCharCode(65 + i % 26) }));
+  h.context.setupEmailReminder();
+  h.setNow('2026-11-20T09:30:00+07:00');
+  assert.equal(h.context.sendScheduledReminders().sent, 50);
+  assert.equal(h.triggers.filter(t => t.handler === 'rsvpReminderRetry').length, 1);
+  assert.equal(h.context.rsvpReminderRetry().sent, 5);
+  assert.equal(h.outbox.length, 55);
+  assert.equal(h.context.sendScheduledReminders().sent, 0);
+});
+
+test('email preview is escaped and sends nothing; venue and receipt UI are consistent', () => {
+  const h = createAppsScriptHarness();
+  h.context.previewReminderEmail();
+  assert.equal(h.outbox.length, 0);
+  const mail = h.context.rsvpReminderMessage_({ title: 'นาย', fullName: '<img src=x>', affiliation: 'A & B' });
+  assert.ok(mail.htmlBody.includes('&lt;img src=x&gt;'));
+  assert.ok(mail.htmlBody.includes('A &amp; B'));
+  assert.ok(mail.body.includes(EVENT.venue));
+  const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+  assert.ok(html.indexOf('id="fullName"') < html.indexOf('id="email"'));
+  assert.ok(html.indexOf('id="email"') < html.indexOf('id="affiliation"'));
+  assert.ok(html.includes('id="receipt-email"'));
+  assert.ok(html.includes('id="save-confirmation"'));
+  assert.equal(html.includes('data-calendar-link'), false);
+  assert.equal(html.includes('เพิ่มกิจกรรมในปฏิทิน'), false);
 });
