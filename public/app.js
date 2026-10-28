@@ -1,5 +1,5 @@
 import { TITLES, AFFILIATIONS, validateRegistration } from './validation.js';
-import { calendarHref } from './calendar.js';
+import { createConfirmationPng } from './confirmation.js';
 const form = document.querySelector('#registration-form');
 const fields = document.querySelector('#form-fields');
 const message = document.querySelector('#form-message');
@@ -11,15 +11,13 @@ const success = document.querySelector('#success-panel');
 let submitting = false;
 let requestId;
 let fingerprint;
-for (const link of document.querySelectorAll('[data-calendar-link]')) {
-  link.href = calendarHref(navigator);
-}
+let receiptData;
 for (const [id, values] of [['title', TITLES], ['affiliation', AFFILIATIONS]]) {
   for (const value of values) document.getElementById(id).add(new Option(value, value));
 }
 submitButton.disabled = false;
 function showErrors(errors = {}) {
-  for (const key of ['title', 'fullName', 'affiliation']) {
+  for (const key of ['title', 'fullName', 'email', 'affiliation']) {
     document.getElementById(`${key}-error`).textContent = errors[key] || '';
     document.getElementById(key).setAttribute('aria-invalid', errors[key] ? 'true' : 'false');
   }
@@ -27,7 +25,7 @@ function showErrors(errors = {}) {
 function showMessage(text) { message.textContent = text; message.hidden = false; message.focus(); }
 form.addEventListener('input', event => {
   const key = event.target.name;
-  if (['title', 'fullName', 'affiliation'].includes(key)) {
+  if (['title', 'fullName', 'email', 'affiliation'].includes(key)) {
     document.getElementById(`${key}-error`).textContent = '';
     event.target.setAttribute('aria-invalid', 'false');
     message.hidden = true;
@@ -75,9 +73,11 @@ form.addEventListener('submit', async event => {
       showMessage(messages[result.code] || 'ยังยืนยันผลการบันทึกไม่ได้ กรุณากดส่งอีกครั้ง ระบบจะตรวจสอบและป้องกันรายการซ้ำให้');
       return;
     }
-    if (!['CREATED', 'ALREADY_SAVED'].includes(result.code) || !/^NU69-[A-F0-9]{16}$/.test(result.registrationId || '')) throw new Error('Invalid receipt');
+    if (result.schemaVersion !== 2 || !['CREATED', 'ALREADY_SAVED'].includes(result.code) || !/^NU69-[A-F0-9]{16}$/.test(result.registrationId || '')) throw new Error('Invalid receipt');
     document.querySelector('#receipt-name').textContent = `${checked.data.title} ${checked.data.fullName}`;
+    document.querySelector('#receipt-email').textContent = checked.data.email;
     document.querySelector('#receipt-affiliation').textContent = checked.data.affiliation;
+    receiptData = { ...checked.data };
     form.hidden = true;
     document.querySelector('.participation-note').hidden = true;
     success.hidden = false;
@@ -92,4 +92,20 @@ form.addEventListener('submit', async event => {
     spinner.hidden = true;
     arrow.hidden = false;
   }
+});
+document.querySelector('#save-confirmation').addEventListener('click', async () => {
+  const button = document.querySelector('#save-confirmation');
+  const status = document.querySelector('#save-status');
+  if (!receiptData || button.disabled) return;
+  button.disabled = true; status.textContent = 'กำลังสร้างรูป…';
+  try {
+    const blob = await createConfirmationPng(receiptData);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = 'sciusnu-training-confirmation.png';
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    status.textContent = 'สร้างรูปแล้ว หากรูปเปิดในแท็บใหม่ ให้แตะค้างแล้วเลือกบันทึกรูปภาพ';
+  } catch { status.textContent = 'ยังบันทึกเป็นรูปไม่ได้ กรุณาลองอีกครั้ง หรือจับภาพหน้าจอนี้ไว้'; }
+  finally { button.disabled = false; }
 });
