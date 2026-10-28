@@ -6,6 +6,13 @@ import assert from 'node:assert/strict';
 // This runs the actual Code.gs with in-memory Google service adapters, not a reimplementation.
 export function createAppsScriptHarness() {
   const rows = [];
+  const outbox = [];
+  const triggers = [];
+  let nowMs = Date.now();
+  let quota = 1500;
+  let failMail = false;
+  class ClockDate extends Date { constructor(...args) { super(...(args.length ? args : [nowMs])); } static now() { return nowMs; } }
+  const props = { getProperty: key => properties[key] ?? null, setProperty: (key, value) => { properties[key] = String(value); }, setProperties: values => Object.assign(properties, values) };
   const properties = { SHARED_SECRET: 'test-only-shared-secret-0123456789abcdef', SPREADSHEET_ID: 'test-sheet' };
   const cache = new Map();
   let locked = false;
@@ -30,14 +37,15 @@ export function createAppsScriptHarness() {
   };
   const sheet = { getLastRow: () => rows.length, getRange: range, setFrozenRows() {}, setColumnWidth() {} };
   const context = vm.createContext({
-    console: { error() {} },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: key => properties[key] ?? null }) },
+    console: { error() {}, log() {} },
+    Date: ClockDate,
+    PropertiesService: { getScriptProperties: () => props },
     Utilities: {
       Charset: { UTF_8: 'utf8' }, DigestAlgorithm: { SHA_256: 'sha256' },
       computeHmacSha256Signature: (value, secret) => [...createHmac('sha256', secret).update(value).digest()],
       computeDigest: (_, value) => [...createHash('sha256').update(value).digest()],
       getUuid: randomUUID,
-      formatDate: () => '2026-10-28 12:00:00',
+      formatDate: date => new Date(date.getTime() + 7 * 3600000).toISOString().slice(0,19).replace('T', ' '),
     },
     LockService: { getScriptLock: () => ({
       tryLock() { if (busy || locked) return false; locked = true; return true; },
@@ -49,11 +57,23 @@ export function createAppsScriptHarness() {
       openById: () => ({ getSheetByName: () => sheet, insertSheet: () => sheet }),
       flush() { assert.ok(locked); flushes++; },
     },
+    MailApp: {
+      getRemainingDailyQuota: () => quota,
+      sendEmail(mail) { assert.equal(locked, false, 'Do not hold the sheet lock while sending email'); if (quota <= 0) throw new Error('Quota exceeded'); outbox.push(structuredClone(mail)); quota--; if (failMail) throw new Error('Simulated ambiguous provider failure'); },
+    },
+    ScriptApp: {
+      getProjectTriggers: () => [...triggers],
+      deleteTrigger: trigger => { const i = triggers.indexOf(trigger); if (i >= 0) triggers.splice(i,1); },
+      newTrigger(handler) { let time; const builder = { timeBased: () => builder, at: value => { time = value.getTime(); return builder; }, after: value => { time = nowMs + value; return builder; }, create: () => { const trigger = { handler, time, getHandlerFunction: () => handler }; triggers.push(trigger); return trigger; } }; return builder; },
+    },
     ContentService: { MimeType: { JSON: 'application/json' }, createTextOutput: text => ({ setMimeType: () => JSON.parse(text) }) },
   });
   vm.runInContext(readFileSync(new URL('../../apps-script/Code.gs', import.meta.url), 'utf8'), context);
   return {
-    rows, properties, cache, context,
+    rows, properties, cache, context, outbox, triggers,
+    setNow(value) { nowMs = typeof value === 'number' ? value : Date.parse(value); },
+    setQuota(value) { quota = value; },
+    setMailFailure(value) { failMail = value; },
     get locked() { return locked; }, get flushes() { return flushes; }, get releases() { return releases; },
     setBusy(value) { busy = value; },
     setup() { context.setupSheet(); },
