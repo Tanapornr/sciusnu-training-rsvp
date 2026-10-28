@@ -5,10 +5,13 @@ const files = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/styles.css', ['styles.css', 'text/css; charset=utf-8']],
+  ['/readable.css', ['readable.css', 'text/css; charset=utf-8']],
+  ['/confirmation.js', ['confirmation.js', 'text/javascript; charset=utf-8']],
   ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
   ['/validation.js', ['validation.js', 'text/javascript; charset=utf-8']],
   ['/calendar.js', ['calendar.js', 'text/javascript; charset=utf-8']],
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
+  ['/images/logo-banner-scius.png', ['images/logo-banner-scius.png', 'image/png']],
   ['/images/speaker-chanadda.png', ['images/speaker-chanadda.png', 'image/png']],
   ['/event.ics', ['event.ics', 'text/calendar; charset=utf-8']],
 ]);

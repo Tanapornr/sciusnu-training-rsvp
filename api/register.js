@@ -54,7 +54,7 @@ export async function handleRegistration(request, { env = process.env, fetchImpl
   // Vercel overwrites x-vercel-forwarded-for; never trust browser-supplied x-forwarded-for.
   const ip = env.VERCEL ? (request.headers.get('x-vercel-forwarded-for') || 'unknown') : 'local-development';
   const clientKey = createHmac('sha256', env.APPS_SCRIPT_SECRET).update(ip.split(',')[0].trim()).digest('hex');
-  const payload = JSON.stringify({ ...checked.data, requestId: input.requestId, clientKey, eventDate: '2026-11-21' });
+  const payload = JSON.stringify({ ...checked.data, requestId: input.requestId, clientKey, eventDate: '2026-11-21', schemaVersion: 2 });
   const timestamp = String(now());
   const signature = createHmac('sha256', env.APPS_SCRIPT_SECRET).update(`${timestamp}.${payload}`).digest('hex');
   try {
@@ -65,8 +65,8 @@ export async function handleRegistration(request, { env = process.env, fetchImpl
     });
     if (!upstream.ok) throw new Error('UPSTREAM_HTTP');
     const result = await upstream.json();
-    if (result?.ok === true && ['CREATED', 'ALREADY_SAVED'].includes(result.code) && ID.test(result.registrationId || '')) {
-      return json({ ok: true, code: result.code, registrationId: result.registrationId }, result.code === 'CREATED' ? 201 : 200);
+    if (result?.ok === true && result.schemaVersion === 2 && ['CREATED', 'ALREADY_SAVED'].includes(result.code) && ID.test(result.registrationId || '')) {
+      return json({ ok: true, code: result.code, registrationId: result.registrationId, schemaVersion: 2 }, result.code === 'CREATED' ? 201 : 200);
     }
     if (result?.ok === false && CODES[result.code]) {
       const [status, message] = CODES[result.code];
