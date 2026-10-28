@@ -11,6 +11,7 @@ const files = new Map([
   ['/validation.js', ['validation.js', 'text/javascript; charset=utf-8']],
   ['/calendar.js', ['calendar.js', 'text/javascript; charset=utf-8']],
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
+  ['/images/logo-banner-scius.png', ['images/logo-banner-scius.png', 'image/png']],
   ['/images/speaker-chanadda.png', ['images/speaker-chanadda.png', 'image/png']],
   ['/event.ics', ['event.ics', 'text/calendar; charset=utf-8']],
 ]);
