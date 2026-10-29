@@ -31,6 +31,7 @@ test('confirmation setup does not mail historical rows or disturb the dated remi
 test('the email preview escapes participant text without sending messages',()=>{
  const h=createAppsScriptHarness();h.context.previewConfirmationEmail();const mail=h.context.rsvpConfirmationMessage_({title:'นาย',fullName:'<img src=x>',email:'a@example.com',affiliation:'A & B'});
  assert.ok(mail.htmlBody.includes('&lt;img src=x&gt;'));assert.ok(mail.htmlBody.includes('A &amp; B'));assert.equal(h.outbox.length,0);
+ assert.equal(h.context.previewReminderEmail().body.includes('undefined'),false);
 });
 
 test('the reminder includes every eligible registration, including legacy late markers, without repeat delivery',()=>{
