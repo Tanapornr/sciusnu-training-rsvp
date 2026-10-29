@@ -2,6 +2,8 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { handleRegistration } from '../api/register.js';
 const files = new Map([
+  ['/reminder-example.html', ['reminder-example.html', 'text/html; charset=utf-8']],
+  ['/reminder-example.css', ['reminder-example.css', 'text/css; charset=utf-8']],
   ['/email-example.html', ['email-example.html', 'text/html; charset=utf-8']],
   ['/email-example.css', ['email-example.css', 'text/css; charset=utf-8']],
   ['/images/training-hero-reference.png', ['images/training-hero-reference.png', 'image/png']],

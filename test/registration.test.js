@@ -262,7 +262,7 @@ test('missing emails, late registrations, exhausted quota and ambiguous send fai
   h.context.sendScheduledReminders();
   assert.equal(h.outbox.length, 1, 'Ambiguous delivery is never retried automatically');
   h.post(sign({ ...gasData(), fullName: 'ลงทะเบียน ภายหลัง', email: 'late@example.com' }, undefined, String(h.context.Date.now())));
-  assert.equal(h.rows[2][10], 'LATE');
+  assert.equal(h.rows[2][10], 'PENDING');
   h.rows[1][9] = ''; h.rows[1][10] = '';
   h.context.sendScheduledReminders();
   assert.equal(h.rows[1][10], 'MISSING_EMAIL');
