@@ -149,7 +149,7 @@ function setupEmailReminder() {
 
 /** A read-only preview returned to the editor; never sends a message. */
 function previewReminderEmail() {
-  var message = rsvpReminderMessage_({ title: 'นางสาว', fullName: 'ตัวอย่าง ผู้เข้าร่วม', affiliation: 'คณะวิทยาศาสตร์' });
+  var message = rsvpReminderMessage_({ title: 'นางสาว', fullName: 'ตัวอย่าง ผู้เข้าร่วม', email: 'participant@example.com', affiliation: 'คณะวิทยาศาสตร์' });
   console.log(message.body);
   return message;
 }
