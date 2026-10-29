@@ -6,8 +6,14 @@
 .single-page .brand-logo { width: 360px; border-radius: 7px; padding: 9px 11px; }
 .single-page nav { font-size: 16px; }
 .project-overview { padding-top: 29px; padding-bottom: 29px; border-bottom: 1px solid #e0e4d9; }
-.project-title { max-width: 1160px; margin: 0; color: #111411; font-size: clamp(35px, 3.9vw, 48px); font-weight: 800; letter-spacing: -.8px; line-height: 1.55; }
+.project-title { width: 100%; margin: 0; color: #173b3c; font-size: clamp(32px, 3.05vw, 42px); font-weight: 800; letter-spacing: -.35px; line-height: 1.55; }
 .project-title .keep-together { white-space: nowrap; }
+@supports (-webkit-text-stroke: 1px #173b3c) {
+  .project-title { -webkit-text-stroke: 1.15px #173b3c; -webkit-text-fill-color: transparent; }
+}
+@media (min-width: 1051px) {
+  .project-title { white-space: nowrap; }
+}
 .overview-details { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 54px; margin-top: 24px; }
 .project-venue { font-size: 18px; line-height: 1.85; }
 .project-venue strong { display: block; margin-bottom: 4px; color: #233e36; font-size: 17px; font-weight: 700; }
