@@ -66,7 +66,7 @@ export async function handleRegistration(request, { env = process.env, fetchImpl
     if (!upstream.ok) throw new Error('UPSTREAM_HTTP');
     const result = await upstream.json();
     if (result?.ok === true && result.schemaVersion === 2 && ['CREATED', 'ALREADY_SAVED'].includes(result.code) && ID.test(result.registrationId || '')) {
-      return json({ ok: true, code: result.code, registrationId: result.registrationId, schemaVersion: 2 }, result.code === 'CREATED' ? 201 : 200);
+      return json({ ok: true, code: result.code, registrationId: result.registrationId, schemaVersion: 2, confirmationEmailStatus: ['SENT', 'PENDING', 'ERROR', 'SENDING'].includes(result.confirmationEmailStatus) ? result.confirmationEmailStatus : 'UNKNOWN' }, result.code === 'CREATED' ? 201 : 200);
     }
     if (result?.ok === false && CODES[result.code]) {
       const [status, message] = CODES[result.code];
