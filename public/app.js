@@ -1,5 +1,4 @@
 import { TITLES, AFFILIATIONS, validateRegistration } from './validation.js';
-import { createConfirmationPng } from './confirmation.js';
 const form = document.querySelector('#registration-form');
 const fields = document.querySelector('#form-fields');
 const message = document.querySelector('#form-message');
@@ -11,7 +10,7 @@ const success = document.querySelector('#success-panel');
 let submitting = false;
 let requestId;
 let fingerprint;
-let receiptData;
+
 for (const [id, values] of [['title', TITLES], ['affiliation', AFFILIATIONS]]) {
   for (const value of values) document.getElementById(id).add(new Option(value, value));
 }
@@ -77,7 +76,12 @@ form.addEventListener('submit', async event => {
     document.querySelector('#receipt-name').textContent = `${checked.data.title} ${checked.data.fullName}`;
     document.querySelector('#receipt-email').textContent = checked.data.email;
     document.querySelector('#receipt-affiliation').textContent = checked.data.affiliation;
-    receiptData = { ...checked.data };
+    const mailStatus = document.querySelector('#confirmation-mail-status');
+    if (mailStatus) mailStatus.textContent = result.confirmationEmailStatus === 'SENT'
+      ? 'ส่งอีเมลยืนยันการลงทะเบียนแล้ว กรุณาตรวจสอบกล่องจดหมายและโฟลเดอร์จดหมายขยะ'
+      : ['PENDING', 'SENDING'].includes(result.confirmationEmailStatus)
+        ? 'ลงทะเบียนสำเร็จแล้ว อีเมลยืนยันอยู่ระหว่างรอส่ง กรุณาตรวจสอบกล่องจดหมายภายหลัง'
+        : 'ลงทะเบียนสำเร็จแล้ว หากไม่ได้รับอีเมลยืนยัน กรุณาติดต่อผู้จัดโครงการ';
     form.hidden = true;
     document.querySelector('.participation-note').hidden = true;
     success.hidden = false;
@@ -92,20 +96,4 @@ form.addEventListener('submit', async event => {
     spinner.hidden = true;
     arrow.hidden = false;
   }
-});
-document.querySelector('#save-confirmation').addEventListener('click', async () => {
-  const button = document.querySelector('#save-confirmation');
-  const status = document.querySelector('#save-status');
-  if (!receiptData || button.disabled) return;
-  button.disabled = true; status.textContent = 'กำลังสร้างรูป…';
-  try {
-    const blob = await createConfirmationPng(receiptData);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url; link.download = 'sciusnu-training-confirmation.png';
-    document.body.append(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-    status.textContent = 'สร้างรูปแล้ว หากรูปเปิดในแท็บใหม่ ให้แตะค้างแล้วเลือกบันทึกรูปภาพ';
-  } catch { status.textContent = 'ยังบันทึกเป็นรูปไม่ได้ กรุณาลองอีกครั้ง หรือจับภาพหน้าจอนี้ไว้'; }
-  finally { button.disabled = false; }
 });

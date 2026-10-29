@@ -2,6 +2,14 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { handleRegistration } from '../api/register.js';
 const files = new Map([
+  ['/email-example.html', ['email-example.html', 'text/html; charset=utf-8']],
+  ['/email-example.css', ['email-example.css', 'text/css; charset=utf-8']],
+  ['/images/training-hero-reference.png', ['images/training-hero-reference.png', 'image/png']],
+  ['/fonts/Prompt-Regular.ttf', ['fonts/Prompt-Regular.ttf', 'font/ttf']],
+  ['/fonts/Prompt-Medium.ttf', ['fonts/Prompt-Medium.ttf', 'font/ttf']],
+  ['/fonts/Prompt-SemiBold.ttf', ['fonts/Prompt-SemiBold.ttf', 'font/ttf']],
+  ['/fonts/Prompt-Bold.ttf', ['fonts/Prompt-Bold.ttf', 'font/ttf']],
+  ['/fonts/Prompt-ExtraBold.ttf', ['fonts/Prompt-ExtraBold.ttf', 'font/ttf']],
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/template-1', ['template-1/index.html', 'text/html; charset=utf-8']],

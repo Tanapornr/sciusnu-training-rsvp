@@ -7,11 +7,11 @@ var RSVP_AFFILIATIONS = [
 ];
 var RSVP_BASE_HEADERS = ['ลงทะเบียนเมื่อ (Asia/Bangkok)', 'รหัสลงทะเบียน', 'คำนำหน้า', 'ชื่อ-นามสกุล', 'สังกัด/คณะ', 'วันที่จัดโครงการ', 'Request ID', 'Participant key', 'Payload hash'];
 
-var RSVP_HEADERS = RSVP_BASE_HEADERS.concat(['อีเมล', 'สถานะอีเมลเตือน', 'ส่งอีเมลเตือนเมื่อ', 'พยายามส่งเมื่อ', 'หมายเหตุอีเมลเตือน']);
+var RSVP_HEADERS = RSVP_BASE_HEADERS.concat(['อีเมล', 'สถานะอีเมลเตือน', 'ส่งอีเมลเตือนเมื่อ', 'พยายามส่งเมื่อ', 'หมายเหตุอีเมลเตือน', 'สถานะอีเมลยืนยัน', 'ส่งอีเมลยืนยันเมื่อ', 'พยายามส่งอีเมลยืนยันเมื่อ', 'หมายเหตุอีเมลยืนยัน']);
 var RSVP_REMINDER_AT = '2026-11-20T09:30:00+07:00';
 var RSVP_REMINDER_END = '2026-11-21T00:00:00+07:00';
 
-function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.2.0' }); }
+function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.3.0', confirmationEmail: true }); }
 function doPost(e) {
   try {
     var props = PropertiesService.getScriptProperties();
@@ -47,7 +47,7 @@ function doPost(e) {
       // A retry after a network timeout returns the saved receipt without adding a row.
       for (var i = 0; i < rows.length; i++) {
         if (rows[i][6] === data.requestId) return rsvpJson_(rows[i][8] === payloadHash ?
-          { ok: true, code: 'ALREADY_SAVED', registrationId: rows[i][1], schemaVersion: 2 } : { ok: false, code: 'REQUEST_CONFLICT' });
+          { ok: true, code: 'ALREADY_SAVED', registrationId: rows[i][1], schemaVersion: 2, confirmationEmailStatus: String(rows[i][14] || 'UNKNOWN') } : { ok: false, code: 'REQUEST_CONFLICT' });
       }
       for (var j = 0; j < rows.length; j++) {
         // Read the name so rows saved with the previous key format still match.
@@ -66,12 +66,15 @@ function doPost(e) {
       var registrationId = 'NU69-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16).toUpperCase();
       var row = [Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), registrationId,
         data.title, name, data.affiliation, '2026-11-21', data.requestId, participantKey, payloadHash, email,
-        Date.now() < new Date(RSVP_REMINDER_AT).getTime() ? 'PENDING' : 'LATE', '', '', ''];
+        Date.now() < new Date(RSVP_REMINDER_AT).getTime() ? 'PENDING' : 'LATE', '', '', '', 'PENDING', '', '', ''];
       // Text formatting and escaping defend against spreadsheet formula injection.
-      sheet.getRange(sheet.getLastRow() + 1, 1, 1, RSVP_HEADERS.length).setNumberFormat('@').setValues([row.map(rsvpCell_)]);
+      var savedRow = sheet.getLastRow() + 1;
+      sheet.getRange(savedRow, 1, 1, RSVP_HEADERS.length).setNumberFormat('@').setValues([row.map(rsvpCell_)]);
       SpreadsheetApp.flush();
-      return rsvpJson_({ ok: true, code: 'CREATED', registrationId: registrationId, schemaVersion: 2 });
+      // Send after releasing the registration lock below.
     } finally { lock.releaseLock(); }
+    var confirmationStatus = rsvpSendConfirmation_(sheet, savedRow, row);
+    return rsvpJson_({ ok: true, code: 'CREATED', registrationId: registrationId, schemaVersion: 2, confirmationEmailStatus: confirmationStatus });
   } catch (error) {
     console.error('RSVP processing failed');
     return rsvpJson_({ ok: false, code: 'INTERNAL_ERROR' });
@@ -101,15 +104,15 @@ function rsvpSheet_(id, name) {
     var headers = sheet.getRange(1, 1, 1, 9).getValues()[0];
     if (headers.join('|') !== RSVP_BASE_HEADERS.join('|')) throw new Error('Unexpected sheet headers. Use a new empty sheet name.');
     // Append columns J–N; never shift or overwrite the original registration columns.
-    var tail = sheet.getRange(1, 10, 1, 5).getValues()[0];
-    for (var col = 0; col < 5; col++) {
+    var tail = sheet.getRange(1, 10, 1, RSVP_HEADERS.length - 9).getValues()[0];
+    for (var col = 0; col < RSVP_HEADERS.length - 9; col++) {
       if (tail[col] && tail[col] !== RSVP_HEADERS[col + 9]) throw new Error('Unexpected email columns');
       if (!tail[col] && sheet.getLastRow() > 1) {
         var occupied = sheet.getRange(2, col + 10, sheet.getLastRow() - 1, 1).getValues().some(function (row) { return row[0] !== ''; });
         if (occupied) throw new Error('Email migration would overwrite an unnamed column');
       }
     }
-    sheet.getRange(1, 10, 1, 5).setValues([RSVP_HEADERS.slice(9)]);
+    sheet.getRange(1, 10, 1, RSVP_HEADERS.length - 9).setValues([RSVP_HEADERS.slice(9)]);
   }
   return sheet;
 }
@@ -285,4 +288,97 @@ function sendScheduledReminders() {
     ScriptApp.newTrigger('rsvpReminderRetry').timeBased().after(quota === 0 ? 15 * 60000 : 60000).create();
   }
   return { status: status, sent: sent, failed: failed };
+}
+
+/** Owner setup only. Creates a queue worker; sends no email during setup. */
+function setupConfirmationEmails() {
+  MailApp.getRemainingDailyQuota();
+  setupSheet();
+  if (!ScriptApp.getProjectTriggers().some(function(t) { return t.getHandlerFunction() === 'sendPendingConfirmations'; })) {
+    ScriptApp.newTrigger('sendPendingConfirmations').timeBased().everyMinutes(5).create();
+  }
+  console.log('Confirmation emails enabled; pending-only queue checked every 5 minutes. No email sent during setup.');
+}
+
+/** Claim durably, send without holding the sheet lock, then mark the result. */
+function rsvpSendConfirmation_(sheet, rowNumber, row) {
+  var lock = LockService.getScriptLock();
+  var person, registrationId = row[1];
+  if (!lock.tryLock(1000)) return 'PENDING';
+  try {
+    rowNumber = rsvpReminderRow_(sheet, registrationId);
+    if (!rowNumber) return 'ERROR';
+    row = sheet.getRange(rowNumber, 1, 1, RSVP_HEADERS.length).getValues()[0];
+    if (row[14] !== 'PENDING') return String(row[14] || 'UNKNOWN');
+    if (MailApp.getRemainingDailyQuota() < 1) return 'PENDING';
+    sheet.getRange(rowNumber, 15, 1, 4).setValues([['SENDING', '', new Date().toISOString(), '']]);
+    SpreadsheetApp.flush();
+    person = { title: row[2], fullName: row[3], affiliation: row[4], email: String(row[9]).trim().toLowerCase() };
+  } catch(error) { return 'ERROR'; }
+  finally { lock.releaseLock(); }
+  var result = 'SENT';
+  try {
+    var mail = rsvpConfirmationMessage_(person);
+    mail.to = person.email; // One recipient per message; never expose the participant list.
+    MailApp.sendEmail(mail);
+  } catch (error) { result = 'ERROR'; }
+  // SENDING/ERROR are never retried automatically after ambiguous provider errors.
+  if (lock.tryLock(1000)) try {
+    rowNumber = rsvpReminderRow_(sheet, registrationId);
+    if (rowNumber) sheet.getRange(rowNumber, 15, 1, 4).setValues([[result, result === 'SENT' ? new Date().toISOString() : '', new Date().toISOString(), result === 'ERROR' ? 'กรุณาตรวจสอบประวัติการส่งก่อนส่งซ้ำ' : '']]);
+    SpreadsheetApp.flush();
+  } catch(ignored) {} finally { lock.releaseLock(); }
+  return result;
+}
+
+function sendPendingConfirmations() {
+  var props = PropertiesService.getScriptProperties();
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return { status: 'BUSY', sent: 0 };
+  var sent = 0, started = Date.now();
+  try {
+    var sheet = rsvpSheet_(props.getProperty('SPREADSHEET_ID'), props.getProperty('SHEET_NAME') || 'Registrations');
+    var rows = sheet.getLastRow() > 1 ? sheet.getRange(2, 1, sheet.getLastRow() - 1, RSVP_HEADERS.length).getValues() : [];
+  } finally { lock.releaseLock(); }
+    for (var i = 0; i < rows.length; i++) {
+      if (sent >= 20 || Date.now() - started > 15000 || MailApp.getRemainingDailyQuota() < 1) break;
+      if (rows[i][14] !== 'PENDING' || !rsvpValidEmail_(String(rows[i][9] || ''))) continue;
+      if (rsvpSendConfirmation_(sheet, i + 2, rows[i]) === 'SENT') sent++;
+    }
+  return { status: 'COMPLETE', sent: sent };
+}
+
+function previewConfirmationEmail() {
+  var mail = rsvpConfirmationMessage_({ title: 'นางสาว', fullName: 'ตัวอย่าง ผู้เข้าร่วม', email: 'participant@example.com', affiliation: 'คณะวิทยาศาสตร์' });
+  console.log(mail.body); return mail;
+}
+
+function rsvpConfirmationMessage_(person) {
+  var name = (person.title + ' ' + person.fullName).trim();
+  var maps = 'https://maps.app.goo.gl/oaKL7rKsn9W3KA5U8';
+  var subject = 'ลงทะเบียนสำเร็จ | โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.';
+  var body = 'เรียน ' + name + '\n\nลงทะเบียนสำเร็จแล้ว\n' +
+    'ผู้เข้าร่วม: ' + name + '\nอีเมล: ' + person.email + '\nสังกัด/คณะ: ' + person.affiliation + '\n\n' +
+    'ยืนยันการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
+    'วันเสาร์ที่ 21 พฤศจิกายน 2569 เวลา 09.00–16.00 น.\n' +
+    'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\nแผนที่: ' + maps + '\n\n' +
+    '09.00–12.00 น. จิตวิทยาในการสอน\nผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง\nอาจารย์ประจำภาควิชาบริหาร วิจัยและพัฒนานวัตกรรมทางการศึกษา\nคณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
+    '13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\nน.ส.ภัทราภรณ์ ธีระการณ์\nนักจิตวิทยาปฏิบัติการ กลุ่มงานจิตเวชและยาเสพติด โรงพยาบาลพุทธชินราช พิษณุโลก\n\n' +
+    'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\nขอแสดงความนับถือ\nธนาภรณ์ รอดฉ่ำ';
+  var html = `<!doctype html><html lang="th"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>ลงทะเบียนสำเร็จ | SCiUS NU</title></head>
+<body style="margin:0;background:#f5f6f8;color:#233149;font-family:Prompt,Tahoma,Arial,sans-serif;line-height:1.8">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:30px 14px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#fff;border:1px solid #e7eaf0;border-radius:16px;overflow:hidden">
+<tr><td style="padding:25px 30px;background:#172235"><img src="https://sciusnu-training-rsvp.vercel.app/images/logo-banner-scius.png" width="330" alt="โครงการ วมว. ศูนย์มหาวิทยาลัยนเรศวร" style="display:block;width:330px;max-width:100%;height:auto"></td></tr>
+<tr><td style="padding:30px"><p style="margin:0 0 6px;font-size:12px;letter-spacing:2px;color:#e37531">REGISTRATION CONFIRMED</p><h1 style="font-size:29px;line-height:1.5;margin:0 0 22px;color:#172235">ลงทะเบียนสำเร็จแล้ว</h1>
+<p style="margin:0 0 22px;font-size:16px">เรียน ${rsvpEscape_(name)}<br>ระบบได้รับข้อมูลและยืนยันการเข้าร่วมโครงการของท่านเรียบร้อยแล้ว</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1px solid #ffe5d0;border-radius:10px"><tr><td style="padding:20px;font-size:16px"><p style="margin:0 0 12px"><span style="font-size:13px;color:#91877e">ผู้เข้าร่วม</span><br><strong>${rsvpEscape_(name)}</strong></p><p style="margin:0 0 12px"><span style="font-size:13px;color:#91877e">อีเมล</span><br>${rsvpEscape_(person.email)}</p><p style="margin:0"><span style="font-size:13px;color:#91877e">สังกัด/คณะ</span><br>${rsvpEscape_(person.affiliation)}</p></td></tr></table>
+<h2 style="font-size:20px;margin:27px 0 16px;line-height:1.8">โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</h2><p style="font-size:17px;margin:0 0 16px"><strong>วันเสาร์ที่ 21 พฤศจิกายน 2569</strong><br>เวลา 09.00–16.00 น.</p><p style="font-size:16px;margin:0 0 17px">ณ ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</p>
+<a href="${maps}" style="display:inline-block;background:#fc7627;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:15px">ดูแผนที่สถานที่จัดโครงการ ↗</a>
+<h2 style="font-size:20px;margin:30px 0 14px">กำหนดการและวิทยากร</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงเช้า · 09.00–12.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px">จิตวิทยาในการสอน</h3><img src="https://sciusnu-training-rsvp.vercel.app/images/speaker-chanadda.png" width="84" alt="ผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง" style="display:block;width:84px;height:auto;border-radius:8px;margin-bottom:12px"><p style="font-size:16px;margin:0 0 7px;font-weight:bold">ผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง</p><p style="font-size:14px;color:#7a8596;margin:0">อาจารย์ประจำภาควิชาบริหาร<br>วิจัยและพัฒนานวัตกรรมทางการศึกษา<br>คณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร</p></td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px;margin-top:14px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงบ่าย · 13.00–16.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px;line-height:1.7">เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</h3><p style="font-size:16px;margin:0 0 7px;font-weight:bold">น.ส.ภัทราภรณ์ ธีระการณ์</p><p style="font-size:14px;color:#7a8596;margin:0">นักจิตวิทยาปฏิบัติการ<br>กลุ่มงานจิตเวชและยาเสพติด<br>โรงพยาบาลพุทธชินราช พิษณุโลก</p></td></tr></table>
+<p style="font-size:15px;color:#7b8595;margin:27px 0 20px;padding-top:20px;border-top:1px solid #e8ecf2">สอบถามข้อมูลเพิ่มเติม<br><a href="tel:0949426428" style="color:#d76e2b;text-decoration:none">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p style="font-size:16px;margin:0">ขอแสดงความนับถือ<br><strong>ธนาภรณ์ รอดฉ่ำ</strong></p></td></tr></table>
+<p style="font-size:12px;color:#98a0ad;margin:17px 0">SCiUS NU Training RSVP · 2569</p></td></tr></table></body></html>`;
+  return { subject: subject, body: body, htmlBody: html, name: 'SCiUS NU Training RSVP' };
 }
