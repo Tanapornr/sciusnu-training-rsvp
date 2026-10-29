@@ -36,13 +36,13 @@ test('actual API → signed Apps Script → sheet → confirmed response; retry 
   assert.equal(harness.rows.length, 2);
   assert.equal(harness.rows[1][3], input.fullName);
   assert.equal(harness.rows[1][5], '2026-11-21');
-  assert.equal(harness.flushes, 1);
+  assert.equal(harness.flushes, 3);
   assert.equal(harness.locked, false);
   const retry = await call(input);
   assert.equal(retry.status, 200);
   assert.deepEqual(await retry.json(), { ...receipt, code: 'ALREADY_SAVED' });
   assert.equal(harness.rows.length, 2);
-  assert.equal(harness.releases, 2);
+  assert.equal(harness.releases, 4);
 });
 test('same name is rejected across affiliations, titles, whitespace and case', async () => {
   const { harness, call } = integration();
@@ -163,7 +163,7 @@ test('formula escaping and public health endpoint do not expose participant data
   assert.equal(h.context.rsvpCell_('=1+1'), "'=1+1");
   assert.equal(h.context.rsvpCell_('@formula'), "'@formula");
   assert.equal(h.context.rsvpCell_('ชื่อ นามสกุล'), 'ชื่อ นามสกุล');
-  assert.deepEqual(Object.keys(h.context.doGet()).sort(), ['ok', 'service', 'version']);
+  assert.deepEqual(Object.keys(h.context.doGet()).sort(), ['confirmationEmail', 'ok', 'service', 'version']);
 });
 
 test('email is required and validated consistently in browser, API and Apps Script', async () => {
@@ -180,7 +180,9 @@ test('email is required and validated consistently in browser, API and Apps Scri
   assert.equal(response.status, 201);
   assert.equal((await response.json()).schemaVersion, 2);
   assert.equal(harness.rows[1][9], 'name+tag@example.com');
-  assert.equal(harness.outbox.length, 0, 'Registration does not send reminders immediately');
+  assert.equal(harness.outbox.length, 1, 'Registration sends one confirmation');
+  assert.ok(harness.outbox[0].subject.startsWith('ลงทะเบียนสำเร็จ'));
+  assert.equal(harness.rows[1][10], 'PENDING', 'The dated reminder remains separate');
 });
 
 test('legacy nine-column rows survive additive email migration unchanged', () => {
@@ -190,7 +192,7 @@ test('legacy nine-column rows survive additive email migration unchanged', () =>
   const legacy = ['2026-10-28 12:00:00','NU69-1234567890ABCDEF','ดร.','ผู้เข้าร่วม เดิม','คณะวิทยาศาสตร์','2026-11-21','legacy-request','old-key','old-hash'];
   h.rows.push([...legacy]);
   h.setup();
-  assert.equal(h.rows[0].length, 14);
+  assert.equal(h.rows[0].length, 18);
   assert.deepEqual(h.rows[1], legacy);
   h.setup();
   assert.deepEqual(h.rows[1], legacy);
@@ -202,12 +204,14 @@ test('legacy nine-column rows survive additive email migration unchanged', () =>
 
 test('setting up reminders creates exactly two dated triggers and sends no mail', () => {
   const h = createAppsScriptHarness();
+  h.outbox.length = 0;
   h.context.setupEmailReminder();
   assert.equal(h.outbox.length, 0);
   assert.equal(h.properties.REMINDER_ENABLED, 'true');
   assert.equal(h.triggers.length, 2);
   assert.equal(h.triggers[0].time, Date.parse('2026-11-20T02:30:00Z'));
   assert.equal(h.triggers[1].time, Date.parse('2026-11-20T02:40:00Z'));
+  h.outbox.length = 0;
   h.context.setupEmailReminder();
   assert.equal(h.triggers.length, 2);
   h.setNow('2026-11-20T10:00:00+07:00');
@@ -218,6 +222,7 @@ test('reminders never send early, use separate recipients, and do not resend com
   const h = createAppsScriptHarness();
   h.post(sign(gasData()));
   h.post(sign({ ...gasData(), fullName: 'สมหญิง รักเรียน', email: 'second@example.com' }));
+  h.outbox.length = 0;
   h.context.setupEmailReminder();
   assert.equal(h.context.sendScheduledReminders().status, 'NOT_DUE');
   assert.equal(h.outbox.length, 0);
@@ -242,6 +247,7 @@ test('reminders never send early, use separate recipients, and do not resend com
 test('missing emails, late registrations, exhausted quota and ambiguous send failures are safe', () => {
   const h = createAppsScriptHarness();
   h.post(sign(gasData()));
+  h.outbox.length = 0;
   h.context.setupEmailReminder();
   h.setNow('2026-11-20T09:30:00+07:00');
   h.setQuota(0);
@@ -267,6 +273,7 @@ test('missing emails, late registrations, exhausted quota and ambiguous send fai
 test('a partially sent batch is resumed without duplicate delivery', () => {
   const h = createAppsScriptHarness();
   for (let i = 0; i < 55; i++) h.post(sign({ ...gasData(), fullName: 'Person ' + String.fromCharCode(65 + Math.floor(i / 26)) + String.fromCharCode(65 + i % 26) }));
+  h.outbox.length = 0;
   h.context.setupEmailReminder();
   h.setNow('2026-11-20T09:30:00+07:00');
   assert.equal(h.context.sendScheduledReminders().sent, 50);
@@ -288,7 +295,8 @@ test('email preview is escaped and sends nothing; venue and receipt UI are consi
   assert.ok(html.indexOf('id="fullName"') < html.indexOf('id="email"'));
   assert.ok(html.indexOf('id="email"') < html.indexOf('id="affiliation"'));
   assert.ok(html.includes('id="receipt-email"'));
-  assert.ok(html.includes('id="save-confirmation"'));
+  assert.equal(html.includes('id="save-confirmation"'), false);
+  assert.ok(html.includes('id="confirmation-mail-status"'));
   assert.equal(html.includes('data-calendar-link'), false);
   assert.equal(html.includes('เพิ่มกิจกรรมในปฏิทิน'), false);
 });
