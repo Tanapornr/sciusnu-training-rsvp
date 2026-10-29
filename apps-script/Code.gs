@@ -11,7 +11,7 @@ var RSVP_HEADERS = RSVP_BASE_HEADERS.concat(['อีเมล', 'สถานะ
 var RSVP_REMINDER_AT = '2026-11-20T09:30:00+07:00';
 var RSVP_REMINDER_END = '2026-11-21T00:00:00+07:00';
 
-function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.3.0', confirmationEmail: true }); }
+function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.3.1', confirmationEmail: true }); }
 function doPost(e) {
   try {
     var props = PropertiesService.getScriptProperties();
@@ -66,7 +66,7 @@ function doPost(e) {
       var registrationId = 'NU69-' + Utilities.getUuid().replace(/-/g, '').slice(0, 16).toUpperCase();
       var row = [Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyy-MM-dd HH:mm:ss'), registrationId,
         data.title, name, data.affiliation, '2026-11-21', data.requestId, participantKey, payloadHash, email,
-        Date.now() < new Date(RSVP_REMINDER_AT).getTime() ? 'PENDING' : 'LATE', '', '', '', 'PENDING', '', '', ''];
+        Date.now() < new Date(RSVP_REMINDER_END).getTime() ? 'PENDING' : 'LATE', '', '', '', 'PENDING', '', '', ''];
       // Text formatting and escaping defend against spreadsheet formula injection.
       var savedRow = sheet.getLastRow() + 1;
       sheet.getRange(savedRow, 1, 1, RSVP_HEADERS.length).setNumberFormat('@').setValues([row.map(rsvpCell_)]);
@@ -157,26 +157,30 @@ function previewReminderEmail() {
 function rsvpReminderMessage_(person) {
   var name = (person.title + ' ' + person.fullName).trim();
   var maps = 'https://maps.app.goo.gl/oaKL7rKsn9W3KA5U8';
-  var subject = 'แจ้งเตือนเข้าร่วมโครงการ วมว. วันที่ 21 พฤศจิกายน 2569';
-  var body = 'เรียน ' + name + '\n\n' +
-    'ขอแจ้งเตือนการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
-    'สังกัด/คณะ: ' + person.affiliation + '\n\n' +
+  var subject = 'แจ้งเตือนเข้าร่วมโครงการ วมว. | 21 พฤศจิกายน 2569';
+  var body = 'เรียน ' + name + '\n\nขอแจ้งเตือนการเข้าร่วมโครงการในวันเสาร์ที่ 21 พฤศจิกายน 2569\n' +
+    'ผู้เข้าร่วม: ' + name + '\nอีเมล: ' + person.email + '\nสังกัด/คณะ: ' + person.affiliation + '\n\n' +
+    'ยืนยันการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
     'วันเสาร์ที่ 21 พฤศจิกายน 2569 เวลา 09.00–16.00 น.\n' +
-    'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\n' +
-    'แผนที่: ' + maps + '\n\n' +
-    'กำหนดการ\n09.00–12.00 น. จิตวิทยาในการสอน\n13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\n\n' +
-    'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\n' +
-    'ขอแสดงความนับถือ\nธนาภรณ์ รอดฉ่ำ';
-  var html = `<!doctype html><html lang="th"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>แจ้งเตือนเข้าร่วมโครงการ วมว.</title></head>
-<body style="margin:0;padding:0;background:#f5f6f3;color:#253d37;font-family:Tahoma,Arial,sans-serif;font-size:17px;line-height:1.9">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f6f3"><tr><td align="center" style="padding:28px 14px">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#fff;border:1px solid #e1e5de;border-radius:14px">
-<tr><td style="padding:32px 30px 22px;border-bottom:1px solid #e9ece5"><img src="https://sciusnu-training-rsvp.vercel.app/images/logo-banner-scius.png" width="300" alt="โครงการ วมว. ศูนย์มหาวิทยาลัยนเรศวร" style="display:block;width:300px;max-width:100%;height:auto"><p style="margin:24px 0 5px;font-size:13px;letter-spacing:1.5px;color:#788579">SCiUS NU · TRAINING</p><h1 style="margin:0;font-size:27px;font-weight:600;line-height:1.6">แจ้งเตือนเข้าร่วมโครงการ</h1></td></tr>
-<tr><td style="padding:26px 30px 30px"><p style="margin:0 0 22px">เรียน ${rsvpEscape_(name)}</p><p style="margin:0 0 8px;color:#6c796f;font-size:15px">ขอแจ้งเตือนการเข้าร่วม</p><p style="margin:0 0 22px;font-size:20px;line-height:1.8;font-weight:600">โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</p><p style="margin:0 0 24px;color:#627267;font-size:16px">สังกัด/คณะ: ${rsvpEscape_(person.affiliation)}</p>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f7f8f4;border:1px solid #e5e8df;border-radius:10px"><tr><td style="padding:22px"><p style="margin:0 0 5px;color:#7b867b;font-size:14px">วันและเวลา</p><p style="margin:0 0 18px;font-size:20px;font-weight:600">วันเสาร์ที่ 21 พฤศจิกายน 2569<br><span style="font-size:17px;font-weight:400">09.00–16.00 น.</span></p><p style="margin:0 0 5px;color:#7b867b;font-size:14px">สถานที่</p><p style="margin:0 0 20px">ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</p><a href="${maps}" style="display:inline-block;color:#253d37;background:#fff;border:1px solid #bbc9bb;border-radius:7px;padding:9px 18px;text-decoration:none;font-size:16px">ดูแผนที่สถานที่จัดโครงการ ↗</a></td></tr></table>
-<h2 style="margin:28px 0 12px;font-size:19px;font-weight:600">กำหนดการ</h2><p style="margin:0 0 14px"><span style="color:#748170;font-size:15px">09.00–12.00 น.</span><br>จิตวิทยาในการสอน</p><p style="margin:0 0 26px"><span style="color:#748170;font-size:15px">13.00–16.00 น.</span><br>เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</p>
-<p style="margin:0;padding:22px 0 0;border-top:1px solid #e9ece5;color:#647267;font-size:16px">สอบถามข้อมูลเพิ่มเติม<br><a href="tel:0949426428" style="color:#253d37;text-decoration:none">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p style="margin:26px 0 0;font-size:17px">ขอแสดงความนับถือ<br><strong style="font-weight:600">ธนาภรณ์ รอดฉ่ำ</strong></p></td></tr></table>
-<p style="margin:18px 0 0;font-size:12px;color:#8a9388">โครงการ วมว. ศูนย์มหาวิทยาลัยนเรศวร</p></td></tr></table></body></html>`;
+    'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\nแผนที่: ' + maps + '\n\n' +
+    '09.00–12.00 น. จิตวิทยาในการสอน\nผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง\nอาจารย์ประจำภาควิชาบริหาร วิจัยและพัฒนานวัตกรรมทางการศึกษา\nคณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
+    '13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\nน.ส.ภัทราภรณ์ ธีระการณ์\nนักจิตวิทยาปฏิบัติการ กลุ่มงานจิตเวชและยาเสพติด โรงพยาบาลพุทธชินราช พิษณุโลก\n\n' +
+    'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\nขอแสดงความนับถือ\nธนาภรณ์ รอดฉ่ำ';
+  var html = `<!doctype html><html lang="th"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>แจ้งเตือนเข้าร่วมโครงการ | SCiUS NU</title></head>
+<body style="margin:0;background:#f5f6f8;color:#233149;font-family:Prompt,Tahoma,Arial,sans-serif;line-height:1.8">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:30px 14px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#fff;border:1px solid #e7eaf0;border-radius:16px;overflow:hidden">
+<tr><td style="padding:25px 30px;background:#172235"><img src="https://sciusnu-training-rsvp.vercel.app/images/logo-banner-scius.png" width="330" alt="โครงการ วมว. ศูนย์มหาวิทยาลัยนเรศวร" style="display:block;width:330px;max-width:100%;height:auto"></td></tr>
+<tr><td style="padding:30px"><p style="margin:0 0 6px;font-size:12px;letter-spacing:2px;color:#e37531">EVENT REMINDER · 21 NOVEMBER 2026</p><h1 style="font-size:29px;line-height:1.5;margin:0 0 22px;color:#172235">แจ้งเตือนเข้าร่วมโครงการ</h1>
+<p style="margin:0 0 22px;font-size:16px">เรียน ${rsvpEscape_(name)}<br>ขอแจ้งเตือนการเข้าร่วมโครงการในวันเสาร์ที่ 21 พฤศจิกายน 2569 ตามรายละเอียดด้านล่าง</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1px solid #ffe5d0;border-radius:10px"><tr><td style="padding:20px;font-size:16px"><p style="margin:0 0 12px"><span style="font-size:13px;color:#91877e">ผู้เข้าร่วม</span><br><strong>${rsvpEscape_(name)}</strong></p><p style="margin:0 0 12px"><span style="font-size:13px;color:#91877e">อีเมล</span><br>${rsvpEscape_(person.email)}</p><p style="margin:0"><span style="font-size:13px;color:#91877e">สังกัด/คณะ</span><br>${rsvpEscape_(person.affiliation)}</p></td></tr></table>
+<h2 style="font-size:20px;margin:27px 0 16px;line-height:1.8">โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</h2><p style="font-size:17px;margin:0 0 16px"><strong>วันเสาร์ที่ 21 พฤศจิกายน 2569</strong><br>เวลา 09.00–16.00 น.</p><p style="font-size:16px;margin:0 0 17px">ณ ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</p>
+<a href="${maps}" style="display:inline-block;background:#fc7627;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:15px">ดูแผนที่สถานที่จัดโครงการ ↗</a>
+<h2 style="font-size:20px;margin:30px 0 14px">กำหนดการและวิทยากร</h2>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงเช้า · 09.00–12.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px">จิตวิทยาในการสอน</h3><img src="https://sciusnu-training-rsvp.vercel.app/images/speaker-chanadda.png" width="84" alt="ผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง" style="display:block;width:84px;height:auto;border-radius:8px;margin-bottom:12px"><p style="font-size:16px;margin:0 0 7px;font-weight:bold">ผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง</p><p style="font-size:14px;color:#7a8596;margin:0">อาจารย์ประจำภาควิชาบริหาร<br>วิจัยและพัฒนานวัตกรรมทางการศึกษา<br>คณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร</p></td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px;margin-top:14px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงบ่าย · 13.00–16.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px;line-height:1.7">เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</h3><p style="font-size:16px;margin:0 0 7px;font-weight:bold">น.ส.ภัทราภรณ์ ธีระการณ์</p><p style="font-size:14px;color:#7a8596;margin:0">นักจิตวิทยาปฏิบัติการ<br>กลุ่มงานจิตเวชและยาเสพติด<br>โรงพยาบาลพุทธชินราช พิษณุโลก</p></td></tr></table>
+<p style="font-size:15px;color:#7b8595;margin:27px 0 20px;padding-top:20px;border-top:1px solid #e8ecf2">สอบถามข้อมูลเพิ่มเติม<br><a href="tel:0949426428" style="color:#d76e2b;text-decoration:none">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p style="font-size:16px;margin:0">ขอแสดงความนับถือ<br><strong>ธนาภรณ์ รอดฉ่ำ</strong></p></td></tr></table>
+<p style="font-size:12px;color:#98a0ad;margin:17px 0">SCiUS NU Training RSVP · 2569</p></td></tr></table></body></html>`;
   return { subject: subject, body: body, htmlBody: html, name: 'SCiUS NU Training RSVP' };
 }
 
@@ -198,8 +202,8 @@ function rsvpReminderRow_(sheet, id) {
   return 0;
 }
 function rsvpReminderCandidate_(row) {
-  return String(row[5]) === '2026-11-21' && String(row[0]) <= '2026-11-20 09:30:00' &&
-    ['', 'PENDING'].indexOf(String(row[10] || '')) !== -1;
+  return String(row[5]) === '2026-11-21' &&
+    ['', 'PENDING', 'LATE', 'MISSING_EMAIL', 'INVALID_EMAIL'].indexOf(String(row[10] || '')) !== -1;
 }
 
 /** Read-only owner check; contains counts only, never participant names or addresses. */
@@ -345,6 +349,9 @@ function sendPendingConfirmations() {
       if (rows[i][14] !== 'PENDING' || !rsvpValidEmail_(String(rows[i][9] || ''))) continue;
       if (rsvpSendConfirmation_(sheet, i + 2, rows[i]) === 'SENT') sent++;
     }
+  // The existing 5-minute worker is also a fallback for the dated reminder.
+  // Each reminder is claimed separately, so concurrent triggers cannot resend it.
+  if (props.getProperty('REMINDER_ENABLED') === 'true' && Date.now() >= new Date(RSVP_REMINDER_AT).getTime() && Date.now() < new Date(RSVP_REMINDER_END).getTime()) sendScheduledReminders();
   return { status: 'COMPLETE', sent: sent };
 }
 
@@ -362,8 +369,6 @@ function rsvpConfirmationMessage_(person) {
     'ยืนยันการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
     'วันเสาร์ที่ 21 พฤศจิกายน 2569 เวลา 09.00–16.00 น.\n' +
     'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\nแผนที่: ' + maps + '\n\n' +
-    '09.00–12.00 น. จิตวิทยาในการสอน\nผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง\nอาจารย์ประจำภาควิชาบริหาร วิจัยและพัฒนานวัตกรรมทางการศึกษา\nคณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
-    '13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\nน.ส.ภัทราภรณ์ ธีระการณ์\nนักจิตวิทยาปฏิบัติการ กลุ่มงานจิตเวชและยาเสพติด โรงพยาบาลพุทธชินราช พิษณุโลก\n\n' +
     'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\nขอแสดงความนับถือ\nธนาภรณ์ รอดฉ่ำ';
   var html = `<!doctype html><html lang="th"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>ลงทะเบียนสำเร็จ | SCiUS NU</title></head>
 <body style="margin:0;background:#f5f6f8;color:#233149;font-family:Prompt,Tahoma,Arial,sans-serif;line-height:1.8">
@@ -375,9 +380,6 @@ function rsvpConfirmationMessage_(person) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff8f2;border:1px solid #ffe5d0;border-radius:10px"><tr><td style="padding:20px;font-size:16px"><p style="margin:0 0 12px"><span style="font-size:13px;color:#91877e">ผู้เข้าร่วม</span><br><strong>${rsvpEscape_(name)}</strong></p><p style="margin:0 0 12px"><span style="font-size:13px;color:#91877e">อีเมล</span><br>${rsvpEscape_(person.email)}</p><p style="margin:0"><span style="font-size:13px;color:#91877e">สังกัด/คณะ</span><br>${rsvpEscape_(person.affiliation)}</p></td></tr></table>
 <h2 style="font-size:20px;margin:27px 0 16px;line-height:1.8">โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</h2><p style="font-size:17px;margin:0 0 16px"><strong>วันเสาร์ที่ 21 พฤศจิกายน 2569</strong><br>เวลา 09.00–16.00 น.</p><p style="font-size:16px;margin:0 0 17px">ณ ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</p>
 <a href="${maps}" style="display:inline-block;background:#fc7627;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:15px">ดูแผนที่สถานที่จัดโครงการ ↗</a>
-<h2 style="font-size:20px;margin:30px 0 14px">กำหนดการและวิทยากร</h2>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงเช้า · 09.00–12.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px">จิตวิทยาในการสอน</h3><img src="https://sciusnu-training-rsvp.vercel.app/images/speaker-chanadda.png" width="84" alt="ผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง" style="display:block;width:84px;height:auto;border-radius:8px;margin-bottom:12px"><p style="font-size:16px;margin:0 0 7px;font-weight:bold">ผู้ช่วยศาสตราจารย์ ดร.ชนัดดา ภูหงษ์ทอง</p><p style="font-size:14px;color:#7a8596;margin:0">อาจารย์ประจำภาควิชาบริหาร<br>วิจัยและพัฒนานวัตกรรมทางการศึกษา<br>คณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร</p></td></tr></table>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px;margin-top:14px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงบ่าย · 13.00–16.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px;line-height:1.7">เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</h3><p style="font-size:16px;margin:0 0 7px;font-weight:bold">น.ส.ภัทราภรณ์ ธีระการณ์</p><p style="font-size:14px;color:#7a8596;margin:0">นักจิตวิทยาปฏิบัติการ<br>กลุ่มงานจิตเวชและยาเสพติด<br>โรงพยาบาลพุทธชินราช พิษณุโลก</p></td></tr></table>
 <p style="font-size:15px;color:#7b8595;margin:27px 0 20px;padding-top:20px;border-top:1px solid #e8ecf2">สอบถามข้อมูลเพิ่มเติม<br><a href="tel:0949426428" style="color:#d76e2b;text-decoration:none">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p style="font-size:16px;margin:0">ขอแสดงความนับถือ<br><strong>ธนาภรณ์ รอดฉ่ำ</strong></p></td></tr></table>
 <p style="font-size:12px;color:#98a0ad;margin:17px 0">SCiUS NU Training RSVP · 2569</p></td></tr></table></body></html>`;
   return { subject: subject, body: body, htmlBody: html, name: 'SCiUS NU Training RSVP' };
