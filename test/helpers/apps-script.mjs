@@ -64,7 +64,7 @@ export function createAppsScriptHarness() {
     ScriptApp: {
       getProjectTriggers: () => [...triggers],
       deleteTrigger: trigger => { const i = triggers.indexOf(trigger); if (i >= 0) triggers.splice(i,1); },
-      newTrigger(handler) { let time; const builder = { timeBased: () => builder, at: value => { time = value.getTime(); return builder; }, after: value => { time = nowMs + value; return builder; }, create: () => { const trigger = { handler, time, getHandlerFunction: () => handler }; triggers.push(trigger); return trigger; } }; return builder; },
+      newTrigger(handler) { let time; const builder = { timeBased: () => builder, at: value => { time = value.getTime(); return builder; }, after: value => { time = nowMs + value; return builder; }, everyMinutes: value => { time = value * 60000; return builder; }, create: () => { const trigger = { handler, time, getHandlerFunction: () => handler }; triggers.push(trigger); return trigger; } }; return builder; },
     },
     ContentService: { MimeType: { JSON: 'application/json' }, createTextOutput: text => ({ setMimeType: () => JSON.parse(text) }) },
   });
