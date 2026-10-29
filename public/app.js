@@ -1,5 +1,5 @@
 import { TITLES, AFFILIATIONS, validateRegistration } from './validation.js';
-import { createConfirmationPng } from './confirmation.js';
+import { createConfirmationPng } from './confirmation.js?v=prompt-agenda';
 const form = document.querySelector('#registration-form');
 const fields = document.querySelector('#form-fields');
 const message = document.querySelector('#form-message');
@@ -78,6 +78,20 @@ form.addEventListener('submit', async event => {
     document.querySelector('#receipt-email').textContent = checked.data.email;
     document.querySelector('#receipt-affiliation').textContent = checked.data.affiliation;
     receiptData = { ...checked.data };
+    const card = document.querySelector('#confirmation-card');
+    if (!card.querySelector('.confirmation-brand')) {
+      const brand = document.createElement('div');
+      brand.className = 'confirmation-brand';
+      const logo = document.querySelector('.brand-logo').cloneNode(true);
+      logo.removeAttribute('class');
+      brand.append(logo); card.prepend(brand);
+      const agenda = document.createElement('section');
+      agenda.className = 'confirmation-agenda';
+      const heading = document.createElement('h4'); heading.textContent = 'กำหนดการและวิทยากร';
+      agenda.append(heading);
+      for (const session of document.querySelectorAll('#agenda .session')) agenda.append(session.cloneNode(true));
+      card.append(agenda);
+    }
     form.hidden = true;
     document.querySelector('.participation-note').hidden = true;
     success.hidden = false;
