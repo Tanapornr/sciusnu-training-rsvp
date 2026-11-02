@@ -42,7 +42,7 @@ test('the reminder includes every eligible registration, including legacy late m
  h.setNow('2026-11-20T09:30:00+07:00');
  assert.equal(h.context.sendScheduledReminders().sent,3);assert.equal(h.outbox.length,3);
  assert.ok(h.outbox.every(mail=>mail.subject.startsWith('แจ้งเตือน')));
- for(const mail of h.outbox){assert.ok(mail.body.includes('นัฐพร โอภาสานนท์'));assert.equal(mail.body.includes('ชนัดดา'),false);assert.equal(mail.body.includes('จิตวิทยาในการสอน'),false);assert.ok(mail.htmlBody.includes('speaker-natthaporn.png'));assert.ok(mail.htmlBody.includes('speaker-phattharaphon.png'));assert.ok(mail.htmlBody.includes('กำหนดการและวิทยากร'));assert.equal(mail.cc,undefined);assert.equal(mail.bcc,undefined);}
+ for(const mail of h.outbox){assert.ok(mail.body.includes('นิรันดร์ เงินแย้ม'));assert.equal(mail.body.includes('ชนัดดา'),false);assert.equal(mail.body.includes('จิตวิทยาในการสอน'),false);assert.ok(mail.htmlBody.includes('speaker-niran.png'));assert.ok(mail.htmlBody.includes('speaker-phattharaphon.png'));assert.ok(mail.htmlBody.includes('กำหนดการและวิทยากร'));assert.equal(mail.cc,undefined);assert.equal(mail.bcc,undefined);}
  assert.equal(h.context.sendScheduledReminders().sent,0);assert.equal(h.outbox.length,3);
 });
 
