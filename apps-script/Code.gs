@@ -11,7 +11,7 @@ var RSVP_HEADERS = RSVP_BASE_HEADERS.concat(['อีเมล', 'สถานะ
 var RSVP_REMINDER_AT = '2026-11-20T09:30:00+07:00';
 var RSVP_REMINDER_END = '2026-11-21T00:00:00+07:00';
 
-function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.3.2', confirmationEmail: true }); }
+function doGet() { return rsvpJson_({ ok: true, service: 'sciusnu-training-rsvp', version: '1.3.3', confirmationEmail: true }); }
 function doPost(e) {
   try {
     var props = PropertiesService.getScriptProperties();
@@ -163,7 +163,7 @@ function rsvpReminderMessage_(person) {
     'ยืนยันการเข้าร่วมโครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.\n' +
     'วันเสาร์ที่ 21 พฤศจิกายน 2569 เวลา 09.00–16.00 น.\n' +
     'ณ ห้อง SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร\nแผนที่: ' + maps + '\n\n' +
-    '09.00–12.00 น.\nผู้ช่วยศาสตราจารย์ ดร.นัฐพร โอภาสานนท์\nรักษาการในตำแหน่งหัวหน้าภาควิชาจิตวิทยา\nคณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
+    '09.00–12.00 น.\nผู้ช่วยศาสตราจารย์ ดร.นิรันดร์ เงินแย้ม\nอาจารย์ประจำภาควิชาจิตวิทยา\nคณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร\n\n' +
     '13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา\nน.ส.ภัทราภรณ์ ธีระการณ์\nนักจิตวิทยาปฏิบัติการ กลุ่มงานจิตเวชและยาเสพติด โรงพยาบาลพุทธชินราช พิษณุโลก\n\n' +
     'สอบถามข้อมูลเพิ่มเติม 094-9426428 ธนาภรณ์ รอดฉ่ำ\n\nขอแสดงความนับถือ\nธนาภรณ์ รอดฉ่ำ';
   var html = `<!doctype html><html lang="th"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>แจ้งเตือนเข้าร่วมโครงการ | SCiUS NU</title></head>
@@ -177,7 +177,7 @@ function rsvpReminderMessage_(person) {
 <h2 style="font-size:20px;margin:27px 0 16px;line-height:1.8">โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์<br>โครงการ วมว.</h2><p style="font-size:17px;margin:0 0 16px"><strong>วันเสาร์ที่ 21 พฤศจิกายน 2569</strong><br>เวลา 09.00–16.00 น.</p><p style="font-size:16px;margin:0 0 17px">ณ ห้อง SC1-411 อาคารบริหาร<br>คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร</p>
 <a href="${maps}" style="display:inline-block;background:#fc7627;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-size:15px">ดูแผนที่สถานที่จัดโครงการ ↗</a>
 <h2 style="font-size:20px;margin:30px 0 14px">กำหนดการและวิทยากร</h2>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงเช้า · 09.00–12.00 น.</td></tr><tr><td style="padding:18px"><img src="https://sciusnu-training-rsvp.vercel.app/images/speaker-natthaporn.png" width="84" alt="ผู้ช่วยศาสตราจารย์ ดร.นัฐพร โอภาสานนท์" style="display:block;width:84px;height:auto;border-radius:8px;margin-bottom:12px"><p style="font-size:16px;margin:0 0 7px;font-weight:bold">ผู้ช่วยศาสตราจารย์ ดร.นัฐพร โอภาสานนท์</p><p style="font-size:14px;color:#7a8596;margin:0">รักษาการในตำแหน่งหัวหน้าภาควิชาจิตวิทยา<br>คณะสังคมศาสตร์ มหาวิทยาลัยนเรศวร</p></td></tr></table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงเช้า · 09.00–12.00 น.</td></tr><tr><td style="padding:18px"><img src="https://sciusnu-training-rsvp.vercel.app/images/speaker-niran.png" width="84" alt="ผู้ช่วยศาสตราจารย์ ดร.นิรันดร์ เงินแย้ม" style="display:block;width:84px;height:auto;border-radius:8px;margin-bottom:12px"><p style="font-size:16px;margin:0 0 7px;font-weight:bold">ผู้ช่วยศาสตราจารย์ ดร.นิรันดร์ เงินแย้ม</p><p style="font-size:14px;color:#7a8596;margin:0">อาจารย์ประจำภาควิชาจิตวิทยา<br>คณะศึกษาศาสตร์ มหาวิทยาลัยนเรศวร</p></td></tr></table>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e8ecf2;border-radius:10px;margin-top:14px"><tr><td style="padding:16px 18px;background:#fff5eb;font-size:14px;color:#d76e2b">ช่วงบ่าย · 13.00–16.00 น.</td></tr><tr><td style="padding:18px"><h3 style="font-size:19px;margin:0 0 14px;line-height:1.7">เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา</h3><img src="https://sciusnu-training-rsvp.vercel.app/images/speaker-phattharaphon.png" width="84" alt="น.ส.ภัทราภรณ์ ธีระการณ์" style="display:block;width:84px;height:auto;border-radius:8px;margin-bottom:12px"><p style="font-size:16px;margin:0 0 7px;font-weight:bold">น.ส.ภัทราภรณ์ ธีระการณ์</p><p style="font-size:14px;color:#7a8596;margin:0">นักจิตวิทยาปฏิบัติการ<br>กลุ่มงานจิตเวชและยาเสพติด<br>โรงพยาบาลพุทธชินราช พิษณุโลก</p></td></tr></table>
 <p style="font-size:15px;color:#7b8595;margin:27px 0 20px;padding-top:20px;border-top:1px solid #e8ecf2">สอบถามข้อมูลเพิ่มเติม<br><a href="tel:0949426428" style="color:#d76e2b;text-decoration:none">094-9426428</a> ธนาภรณ์ รอดฉ่ำ</p><p style="font-size:16px;margin:0">ขอแสดงความนับถือ<br><strong>ธนาภรณ์ รอดฉ่ำ</strong></p></td></tr></table>
 <p style="font-size:12px;color:#98a0ad;margin:17px 0">SCiUS NU Training RSVP · 2569</p></td></tr></table></body></html>`;
