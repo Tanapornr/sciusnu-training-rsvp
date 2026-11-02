@@ -11,7 +11,7 @@ export function calendarHref({ userAgent = '', platform = '', maxTouchPoints = 0
       text: 'SCiUS NU Training — โครงการพัฒนาศักยภาพบุคลากร ครูและอาจารย์ โครงการ วมว.',
       dates: '20261121T020000Z/20261121T090000Z',
       ctz: 'Asia/Bangkok',
-      details: '09.00–12.00 น. จิตวิทยาในการสอน\n13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา',
+      details: '09.00–12.00 น.\n13.00–16.00 น. เทคนิคการรับมือและปฐมพยาบาลทางใจในสถานศึกษา',
     });
     const webUrl = `https://calendar.google.com/calendar/render?${params}`;
     // A normal anchor click supplies the user gesture required by Android browsers.
