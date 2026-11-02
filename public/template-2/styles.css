@@ -41,4 +41,4 @@
 
 /* Frame the original portrait closer so facial detail remains visible at card size. */
 .orange-page .afternoon .session-portrait{padding-top:0;margin-top:7px;overflow:hidden;border-radius:50%}
-.orange-page .afternoon .speaker-photo{border-radius:0;transform:scale(1.45);transform-origin:50% 20%;image-rendering:auto}
+.orange-page .afternoon .speaker-photo{border-radius:0;transform:scale(1.45);transform-origin:50% 0%;image-rendering:auto}
