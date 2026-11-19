@@ -290,7 +290,10 @@ test('email preview is escaped and sends nothing; venue and receipt UI are consi
   const mail = h.context.rsvpReminderMessage_({ title: 'นาย', fullName: '<img src=x>', affiliation: 'A & B' });
   assert.ok(mail.htmlBody.includes('&lt;img src=x&gt;'));
   assert.ok(mail.htmlBody.includes('A &amp; B'));
-  assert.ok(mail.body.includes(EVENT.venue));
+  assert.ok(mail.body.includes('ณ ห้องสัมมนา SC1-411 อาคารบริหาร คณะวิทยาศาสตร์ มหาวิทยาลัยนเรศวร'));
+  assert.ok(mail.body.includes('ลงทะเบียนได้ตั้งแต่เวลา 08.30-08.50 น.'));
+  assert.ok(mail.htmlBody.includes('ลงทะเบียนได้ตั้งแต่เวลา 08.30-08.50 น.'));
+  assert.ok(mail.htmlBody.includes('ณ ห้องสัมมนา SC1-411 อาคารบริหาร'));
   const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.ok(html.indexOf('id="fullName"') < html.indexOf('id="email"'));
   assert.ok(html.indexOf('id="email"') < html.indexOf('id="affiliation"'));
